@@ -1,0 +1,5 @@
+#!/bin/sh
+# docker run -it --rm -w /root/car_ws --name car  --network host --device /dev/car-controller -e SHELL=/bin/bash --device /dev/car-lidar -v ~/car_ws:/root/car_ws brianerickson/ros2 /bin/bash -c "screen -q; exit"
+docker run -it --rm -w /root/car_ws --name car  --network host --device /dev/car-controller --device /dev/ttyACM0 --privileged -e SHELL=/bin/bash --device /dev/car-lidar -v ~/car_ws:/root/car_ws brianerickson/ros2 /bin/bash -c "screen -q; exit"
+
+# ros2 run micro_ros_agent micro_ros_agent serial --dev /dev/ttyACM0
