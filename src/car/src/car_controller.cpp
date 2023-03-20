@@ -10,14 +10,21 @@ class MinimalSubscriber : public rclcpp::Node
     MinimalSubscriber()
     : Node("minimal_subscriber")
     {
+      
       subscription_ = this->create_subscription<std_msgs::msg::Int32>(
-      "micro_ros_platformio_node_publisher", 10, std::bind(&MinimalSubscriber::topic_callback, this, _1));
+      "micro_ros_platformio_node_publisher", rclcpp::SensorDataQoS(), std::bind(&MinimalSubscriber::topic_callback, this, _1));
     }
 
   private:
     void topic_callback(const std_msgs::msg::Int32::SharedPtr msg) const
     {
-      RCLCPP_INFO(this->get_logger(), "I heard: '%d'", msg->data);
+      static int i = 0;
+
+      if (i % 100  == 0) {
+        RCLCPP_INFO(this->get_logger(), "callback #%d I heard: '%d'",i, msg->data);
+      }
+      ++i;
+
     }
     rclcpp::Subscription<std_msgs::msg::Int32>::SharedPtr subscription_;
 };

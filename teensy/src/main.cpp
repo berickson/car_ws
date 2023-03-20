@@ -10,6 +10,8 @@
 
 #include <std_msgs/msg/int32.h>
 
+#include <tuple> // for std::ignore
+
 #define LED_PIN 13
 #define RCCHECK(fn) { rcl_ret_t temp_rc = fn; if((temp_rc != RCL_RET_OK)){return false;}}
 #define EXECUTE_EVERY_N_MS(MS, X)  do { \
@@ -27,18 +29,18 @@ rcl_publisher_t publisher;
 std_msgs__msg__Int32 msg;
 bool micro_ros_init_successful;
 
-enum states {
+enum uros_states {
   WAITING_AGENT,
   AGENT_AVAILABLE,
   AGENT_CONNECTED,
   AGENT_DISCONNECTED
-} state;
+} uros_state;
 
 void timer_callback(rcl_timer_t * timer, int64_t last_call_time)
 {
   (void) last_call_time;
   if (timer != NULL) {
-    rcl_publish(&publisher, &msg, NULL);
+    std::ignore = rcl_publish(&publisher, &msg, NULL);
     msg.data++;
   }
 }
@@ -59,14 +61,14 @@ bool create_entities()
   RCCHECK(rclc_node_init_default(&node, "car_controller", "", &support));
 
   // create publisher
-  RCCHECK(rclc_publisher_init_default(
+  RCCHECK(rclc_publisher_init_best_effort(
     &publisher,
     &node,
     ROSIDL_GET_MSG_TYPE_SUPPORT(std_msgs, msg, Int32),
     "micro_ros_platformio_node_publisher"));
 
   // create timer,
-  const unsigned int timer_timeout = 1000;
+  const unsigned int timer_timeout = 1;
   RCCHECK(rclc_timer_init_default(
     &timer,
     &support,
@@ -85,49 +87,54 @@ void destroy_entities()
 {
   rmw_context_t * rmw_context = rcl_context_get_rmw_context(&support.context);
   (void) rmw_uros_set_context_entity_destroy_session_timeout(rmw_context, 0);
-
-  rcl_publisher_fini(&publisher, &node);
-  rcl_timer_fini(&timer);
-  rclc_executor_fini(&executor);
-  rcl_node_fini(&node);
-  rclc_support_fini(&support);
+  
+  std::ignore = rcl_publisher_fini(&publisher, &node);
+  std::ignore = rcl_timer_fini(&timer);
+  std::ignore = rclc_executor_fini(&executor);
+  std::ignore = rcl_node_fini(&node);
+  std::ignore = rclc_support_fini(&support);
 }
 
 void setup() {
   set_microros_serial_transports(Serial);
   pinMode(LED_PIN, OUTPUT);
 
-  state = WAITING_AGENT;
+  uros_state = WAITING_AGENT;
 
   msg.data = 0;
 }
 
-void loop() {
-  switch (state) {
+void maintain_uros_connection() {
+  switch (uros_state) {
     case WAITING_AGENT:
-      EXECUTE_EVERY_N_MS(500, state = (RMW_RET_OK == rmw_uros_ping_agent(100, 1)) ? AGENT_AVAILABLE : WAITING_AGENT;);
+      EXECUTE_EVERY_N_MS(500, uros_state = (RMW_RET_OK == rmw_uros_ping_agent(100, 1)) ? AGENT_AVAILABLE : WAITING_AGENT;);
       break;
     case AGENT_AVAILABLE:
-      state = (true == create_entities()) ? AGENT_CONNECTED : WAITING_AGENT;
-      if (state == WAITING_AGENT) {
+      uros_state = (true == create_entities()) ? AGENT_CONNECTED : WAITING_AGENT;
+      if (uros_state == WAITING_AGENT) {
         destroy_entities();
       };
       break;
     case AGENT_CONNECTED:
-      EXECUTE_EVERY_N_MS(200, state = (RMW_RET_OK == rmw_uros_ping_agent(100, 1)) ? AGENT_CONNECTED : AGENT_DISCONNECTED;);
-      if (state == AGENT_CONNECTED) {
+      EXECUTE_EVERY_N_MS(200, uros_state = (RMW_RET_OK == rmw_uros_ping_agent(100, 1)) ? AGENT_CONNECTED : AGENT_DISCONNECTED;);
+      if (uros_state == AGENT_CONNECTED) {
         rclc_executor_spin_some(&executor, RCL_MS_TO_NS(100));
       }
       break;
     case AGENT_DISCONNECTED:
       destroy_entities();
-      state = WAITING_AGENT;
+      uros_state = WAITING_AGENT;
       break;
     default:
       break;
   }
+}
 
-  if (state == AGENT_CONNECTED) {
+
+void loop() {
+  maintain_uros_connection();
+
+  if (uros_state == AGENT_CONNECTED) {
     digitalWrite(LED_PIN, 1);
   } else {
     digitalWrite(LED_PIN, 0);
