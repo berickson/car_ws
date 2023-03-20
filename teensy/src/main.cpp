@@ -46,6 +46,10 @@ void setup() {
   digitalWrite(pin_led, HIGH);
   // Configure serial transport
   Serial.begin(115200);
+  // while(true) {
+  //   Serial.println("hello");
+  //   delay(1000);
+  // }
   set_microros_serial_transports(Serial);
   delay(2000);
 
@@ -72,7 +76,7 @@ void setup() {
     "micro_ros_platformio_node_publisher"));
 
   // create timer,
-  const unsigned int timer_timeout = 1000;
+  const unsigned int timer_timeout = 1;
   RCCHECK(rclc_timer_init_default(
     &timer,
     &support,
@@ -88,6 +92,5 @@ void setup() {
 
 void loop() {
   digitalWrite(pin_led, !digitalRead(pin_led));
-  delay(100);
-  RCSOFTCHECK(rclc_executor_spin_some(&executor, RCL_MS_TO_NS(100)));
+  RCSOFTCHECK(rclc_executor_spin_some(&executor, RCL_MS_TO_NS(1)));
 }
