@@ -14,6 +14,8 @@
 
 #include "pwm_input.h"
 #include "servo2.h"
+#include "motor_encoder.h"
+#include "quadrature_encoder.h"
 
 
 #define BLUE_CAR
@@ -51,8 +53,14 @@ const int pin_cell0_sense = A18;
 
 PwmInput rx_str;
 PwmInput rx_esc;
+
 Servo2 str;
 Servo2 esc;
+
+QuadratureEncoder odo_fl(pin_odo_fl_a, pin_odo_fl_b);
+QuadratureEncoder odo_fr(pin_odo_fr_a, pin_odo_fr_b);
+
+MotorEncoder motor(pin_motor_a, pin_motor_b, pin_motor_c);
 
 
 ///////////////////////////////////////////////
@@ -64,6 +72,34 @@ void rx_str_handler() {
 
 void rx_esc_handler() {
   rx_esc.handle_change();
+}
+
+void odo_fl_a_changed() {
+  odo_fl.sensor_a_changed();
+}
+
+void odo_fl_b_changed() {
+  odo_fl.sensor_b_changed();
+}
+
+void odo_fr_a_changed() {
+  odo_fr.sensor_a_changed();
+}
+
+void odo_fr_b_changed() {
+  odo_fr.sensor_b_changed();
+}
+
+void motor_a_changed() {
+  motor.on_a_change();
+}
+
+void motor_b_changed() {
+  motor.on_b_change();
+}
+
+void motor_c_changed() {
+  motor.on_c_change();
 }
 
 // ROS
@@ -99,6 +135,27 @@ void publish_update_message() {
 
     update_msg.rx_esc = rx_esc.pulse_us();
     update_msg.rx_str = rx_str.pulse_us();
+
+    noInterrupts();
+    update_msg.spur_us = motor.last_change_us;
+    update_msg.spur_odo = motor.odometer;
+    interrupts();
+
+    noInterrupts();
+    update_msg.odo_fl_a = odo_fl.odometer_a;
+    update_msg.odo_fl_a_us = odo_fl.last_odometer_a_us;
+    update_msg.odo_fl_b = odo_fl.odometer_b;
+    update_msg.odo_fl_b_us = odo_fl.last_odometer_b_us;
+    update_msg.odo_fl_ab_us = odo_fl.odometer_ab_us;
+    interrupts();
+
+    noInterrupts();
+    update_msg.odo_fr_a = odo_fr.odometer_a;
+    update_msg.odo_fr_a_us = odo_fr.last_odometer_a_us;
+    update_msg.odo_fr_b = odo_fr.odometer_b;
+    update_msg.odo_fr_b_us = odo_fr.last_odometer_b_us;
+    update_msg.odo_fr_ab_us = odo_fr.odometer_ab_us;
+    interrupts();
 
     std::ignore = rcl_publish(&update_publisher, &update_msg, NULL);
 }
@@ -160,6 +217,25 @@ void setup() {
 
   attachInterrupt(pin_rx_str, rx_str_handler, CHANGE);
   attachInterrupt(pin_rx_esc, rx_esc_handler, CHANGE);
+
+  pinMode(pin_motor_a, INPUT);
+  pinMode(pin_motor_b, INPUT);
+  pinMode(pin_motor_c, INPUT);
+
+  attachInterrupt(pin_motor_a, motor_a_changed, CHANGE);
+  attachInterrupt(pin_motor_b, motor_b_changed, CHANGE);
+  attachInterrupt(pin_motor_c, motor_c_changed, CHANGE);
+
+  pinMode(pin_odo_fl_a, INPUT);
+  pinMode(pin_odo_fl_b, INPUT);
+  pinMode(pin_odo_fr_a, INPUT);
+  pinMode(pin_odo_fr_a, INPUT);
+  
+  attachInterrupt(pin_odo_fl_a, odo_fl_a_changed, CHANGE);
+  attachInterrupt(pin_odo_fl_b, odo_fl_b_changed, CHANGE);
+  attachInterrupt(pin_odo_fr_a, odo_fr_a_changed, CHANGE);
+  attachInterrupt(pin_odo_fr_b, odo_fr_b_changed, CHANGE);
+
 }
 
 void maintain_uros_connection() {
@@ -199,6 +275,15 @@ void loop() {
   maintain_uros_connection();
 
   if(every_n_ms(last_loop_ms, loop_ms, 10)) {
+
+    if(rx_str.pulse_us() > 0 && rx_esc.pulse_us() > 0) {
+      str.writeMicroseconds(rx_str.pulse_us());
+      esc.writeMicroseconds(rx_esc.pulse_us());
+    } else {
+      esc.writeMicroseconds(1500);
+      str.writeMicroseconds(1500);
+    }
+
     publish_update_message();
   }
 
