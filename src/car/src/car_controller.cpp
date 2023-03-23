@@ -5,17 +5,17 @@
 #include "car_msgs/msg/update.hpp"
 using std::placeholders::_1;
 
-class MinimalSubscriber : public rclcpp::Node
+class CarControllerNode : public rclcpp::Node
 {
   public:
-    MinimalSubscriber()
-    : Node("minimal_subscriber")
+    CarControllerNode()
+    : Node("car_controller")
     {
       
       subscription_ = this->create_subscription<std_msgs::msg::Int32>(
-      "micro_ros_platformio_node_publisher", rclcpp::SensorDataQoS(), std::bind(&MinimalSubscriber::topic_callback, this, _1));
+      "micro_ros_platformio_node_publisher", rclcpp::SensorDataQoS(), std::bind(&CarControllerNode::topic_callback, this, _1));
       car_update_subscription_ = this->create_subscription<car_msgs::msg::Update>(
-      "car_update", rclcpp::SensorDataQoS(), std::bind(&MinimalSubscriber::car_update_topic_callback, this, _1));
+      "car_update", rclcpp::SensorDataQoS(), std::bind(&CarControllerNode::car_update_topic_callback, this, _1));
     }
 
   private:
@@ -47,7 +47,7 @@ class MinimalSubscriber : public rclcpp::Node
 int main(int argc, char * argv[])
 {
   rclcpp::init(argc, argv);
-  rclcpp::spin(std::make_shared<MinimalSubscriber>());
+  rclcpp::spin(std::make_shared<CarControllerNode>());
   rclcpp::shutdown();
   return 0;
 }

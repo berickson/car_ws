@@ -81,11 +81,11 @@ bool create_uros_entities()
     
 
   // create timer,
-  const unsigned int timer_timeout = 1;
+  const unsigned int publish_interval_ms = 10;
   rclc_timer_init_default(
     &timer,
     &support,
-    RCL_MS_TO_NS(timer_timeout),
+    RCL_MS_TO_NS(publish_interval_ms),
     timer_callback);
 
   // create executor
