@@ -12,8 +12,9 @@
 
 #include <tuple> // for std::ignore
 
+#include "car_msgs/msg/update.h"
+
 #define LED_PIN 13
-#define RCCHECK(fn) { rcl_ret_t temp_rc = fn; if((temp_rc != RCL_RET_OK)){return false;}}
 #define EXECUTE_EVERY_N_MS(MS, X)  do { \
   static volatile int64_t init = -1; \
   if (init == -1) { init = uxr_millis();} \
@@ -26,7 +27,9 @@ rcl_timer_t timer;
 rclc_executor_t executor;
 rcl_allocator_t allocator;
 rcl_publisher_t publisher;
+rcl_publisher_t update_publisher;
 std_msgs__msg__Int32 msg;
+car_msgs__msg__Update update_msg;
 bool micro_ros_init_successful;
 
 enum uros_states {
@@ -42,6 +45,9 @@ void timer_callback(rcl_timer_t * timer, int64_t last_call_time)
   if (timer != NULL) {
     std::ignore = rcl_publish(&publisher, &msg, NULL);
     msg.data++;
+
+    update_msg.ms = millis();
+    std::ignore = rcl_publish(&update_publisher, &update_msg, NULL);
   }
 }
 
@@ -50,40 +56,47 @@ void timer_callback(rcl_timer_t * timer, int64_t last_call_time)
 // - RMW_UXRCE_ENTITY_CREATION_DESTROY_TIMEOUT=0
 // - UCLIENT_MAX_SESSION_CONNECTION_ATTEMPTS=3
 
-bool create_entities()
+bool create_uros_entities()
 {
   allocator = rcl_get_default_allocator();
 
   // create init_options
-  RCCHECK(rclc_support_init(&support, 0, NULL, &allocator));
+  rclc_support_init(&support, 0, NULL, &allocator);
 
   // create node
-  RCCHECK(rclc_node_init_default(&node, "car_controller", "", &support));
+  rclc_node_init_default(&node, "car_controller", "", &support);
 
   // create publisher
-  RCCHECK(rclc_publisher_init_best_effort(
-    &publisher,
+  // rclc_publisher_init_best_effort(
+  //   &publisher,
+  //   &node,
+  //   ROSIDL_GET_MSG_TYPE_SUPPORT(std_msgs, msg, Int32),
+  //   "micro_ros_platformio_node_publisher");
+
+  rclc_publisher_init_best_effort(
+    &update_publisher,
     &node,
-    ROSIDL_GET_MSG_TYPE_SUPPORT(std_msgs, msg, Int32),
-    "micro_ros_platformio_node_publisher"));
+    ROSIDL_GET_MSG_TYPE_SUPPORT(car_msgs, msg, Update),
+    "car_update");
+    
 
   // create timer,
   const unsigned int timer_timeout = 1;
-  RCCHECK(rclc_timer_init_default(
+  rclc_timer_init_default(
     &timer,
     &support,
     RCL_MS_TO_NS(timer_timeout),
-    timer_callback));
+    timer_callback);
 
   // create executor
   executor = rclc_executor_get_zero_initialized_executor();
-  RCCHECK(rclc_executor_init(&executor, &support.context, 1, &allocator));
-  RCCHECK(rclc_executor_add_timer(&executor, &timer));
+  rclc_executor_init(&executor, &support.context, 1, &allocator);
+  rclc_executor_add_timer(&executor, &timer);
 
   return true;
 }
 
-void destroy_entities()
+void destroy_uros_entities()
 {
   rmw_context_t * rmw_context = rcl_context_get_rmw_context(&support.context);
   (void) rmw_uros_set_context_entity_destroy_session_timeout(rmw_context, 0);
@@ -110,9 +123,9 @@ void maintain_uros_connection() {
       EXECUTE_EVERY_N_MS(500, uros_state = (RMW_RET_OK == rmw_uros_ping_agent(100, 1)) ? AGENT_AVAILABLE : WAITING_AGENT;);
       break;
     case AGENT_AVAILABLE:
-      uros_state = (true == create_entities()) ? AGENT_CONNECTED : WAITING_AGENT;
+      uros_state = (true == create_uros_entities()) ? AGENT_CONNECTED : WAITING_AGENT;
       if (uros_state == WAITING_AGENT) {
-        destroy_entities();
+        destroy_uros_entities();
       };
       break;
     case AGENT_CONNECTED:
@@ -122,7 +135,7 @@ void maintain_uros_connection() {
       }
       break;
     case AGENT_DISCONNECTED:
-      destroy_entities();
+      destroy_uros_entities();
       uros_state = WAITING_AGENT;
       break;
     default:

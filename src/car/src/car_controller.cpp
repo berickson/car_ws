@@ -2,6 +2,7 @@
 
 #include "rclcpp/rclcpp.hpp"
 #include "std_msgs/msg/int32.hpp"
+#include "car_msgs/msg/update.hpp"
 using std::placeholders::_1;
 
 class MinimalSubscriber : public rclcpp::Node
@@ -13,9 +14,22 @@ class MinimalSubscriber : public rclcpp::Node
       
       subscription_ = this->create_subscription<std_msgs::msg::Int32>(
       "micro_ros_platformio_node_publisher", rclcpp::SensorDataQoS(), std::bind(&MinimalSubscriber::topic_callback, this, _1));
+      car_update_subscription_ = this->create_subscription<car_msgs::msg::Update>(
+      "car_update", rclcpp::SensorDataQoS(), std::bind(&MinimalSubscriber::car_update_topic_callback, this, _1));
     }
 
   private:
+    void car_update_topic_callback(const car_msgs::msg::Update::SharedPtr msg) const
+    {
+      static int i = 0;
+
+      if (i % 100  == 0) {
+        RCLCPP_INFO(this->get_logger(), "car_update callback #%d ms: '%d'",i, msg->ms);
+      }
+      ++i;
+
+    }
+
     void topic_callback(const std_msgs::msg::Int32::SharedPtr msg) const
     {
       static int i = 0;
@@ -27,6 +41,7 @@ class MinimalSubscriber : public rclcpp::Node
 
     }
     rclcpp::Subscription<std_msgs::msg::Int32>::SharedPtr subscription_;
+    rclcpp::Subscription<car_msgs::msg::Update>::SharedPtr car_update_subscription_;
 };
 
 int main(int argc, char * argv[])
