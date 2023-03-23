@@ -8,13 +8,66 @@
 #include <rclc/executor.h>
 #include <rmw_microros/rmw_microros.h>
 
-#include <std_msgs/msg/int32.h>
-
 #include <tuple> // for std::ignore
 
 #include "car_msgs/msg/update.h"
 
-#define LED_PIN 13
+#include "pwm_input.h"
+#include "servo2.h"
+
+
+#define BLUE_CAR
+#if defined(BLUE_CAR)
+const int pin_led = 13;
+const int pin_motor_a = 14;
+const int pin_motor_b = 12;
+const int pin_motor_c = 11;
+//const int pin_motor_temp = A13;
+
+const int pin_odo_fl_a = 23;
+const int pin_odo_fl_b = 22;
+const int pin_odo_fr_a = 21;
+const int pin_odo_fr_b = 20;
+
+const int pin_str = 26;
+const int pin_esc = 27;
+const int pin_esc_aux = 15;
+
+const int pin_rx_str = 25;
+const int pin_rx_esc = 24;
+
+const int pin_mpu_interrupt = 17;
+
+const int pin_vbat_sense = A13;
+const int pin_cell1_sense = A14;
+const int pin_cell2_sense = A15;
+const int pin_cell3_sense = A16;
+const int pin_cell4_sense = A17;
+const int pin_cell0_sense = A18;
+#endif
+
+///////////////////////////////////////////////
+// Globals
+
+PwmInput rx_str;
+PwmInput rx_esc;
+Servo2 str;
+Servo2 esc;
+
+
+///////////////////////////////////////////////
+// Interrupt handlers
+
+void rx_str_handler() {
+  rx_str.handle_change();
+}
+
+void rx_esc_handler() {
+  rx_esc.handle_change();
+}
+
+// ROS
+
 #define EXECUTE_EVERY_N_MS(MS, X)  do { \
   static volatile int64_t init = -1; \
   if (init == -1) { init = uxr_millis();} \
@@ -38,23 +91,17 @@ enum uros_states {
 } uros_state;
 
 void publish_update_message() {
-    msg.data++;
 
     update_msg.ms = millis();
     update_msg.us = micros();
+    update_msg.str = str.readMicroseconds();
+    update_msg.esc = esc.readMicroseconds();
+
+    update_msg.rx_esc = rx_esc.pulse_us();
+    update_msg.rx_str = rx_str.pulse_us();
+
     std::ignore = rcl_publish(&update_publisher, &update_msg, NULL);
-
 }
-
-void timer_callback(rcl_timer_t * timer, int64_t last_call_time)
-{
-  (void) last_call_time;
-  if (timer != NULL) {
-    std::ignore = rcl_publish(&publisher, &msg, NULL);
-  }
-}
-
-
 
 // Functions create_entities and destroy_entities can take several seconds.
 // In order to reduce this rebuild the library with
@@ -89,7 +136,7 @@ void destroy_uros_entities()
   rmw_context_t * rmw_context = rcl_context_get_rmw_context(&support.context);
   (void) rmw_uros_set_context_entity_destroy_session_timeout(rmw_context, 0);
   
-  std::ignore = rcl_publisher_fini(&publisher, &node);
+  std::ignore = rcl_publisher_fini(&update_publisher, &node);
   std::ignore = rcl_timer_fini(&timer);
   std::ignore = rclc_executor_fini(&executor);
   std::ignore = rcl_node_fini(&node);
@@ -98,11 +145,21 @@ void destroy_uros_entities()
 
 void setup() {
   set_microros_serial_transports(Serial);
-  pinMode(LED_PIN, OUTPUT);
+  pinMode(pin_led, OUTPUT);
 
   uros_state = WAITING_AGENT;
 
-  msg.data = 0;
+  rx_str.attach(pin_rx_str);
+  rx_esc.attach(pin_rx_esc);
+  str.attach(pin_str);
+  esc.attach(pin_esc);
+
+  // 1500 is usually safe...
+  esc.writeMicroseconds(1500);
+  str.writeMicroseconds(1500);
+
+  attachInterrupt(pin_rx_str, rx_str_handler, CHANGE);
+  attachInterrupt(pin_rx_esc, rx_esc_handler, CHANGE);
 }
 
 void maintain_uros_connection() {
@@ -146,9 +203,9 @@ void loop() {
   }
 
   if (uros_state == AGENT_CONNECTED) {
-    digitalWrite(LED_PIN, 1);
+    digitalWrite(pin_led, 1);
   } else {
-    digitalWrite(LED_PIN, 0);
+    digitalWrite(pin_led, 0);
   }
 
   last_loop_ms = loop_ms;

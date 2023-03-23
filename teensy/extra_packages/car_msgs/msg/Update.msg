@@ -2,7 +2,8 @@ uint32 ms
 uint32 us
 float32 v_bat
 
-
+float32 str
+float32 esc
 float32 rx_str
 float32 rx_esc
 float32 ax
