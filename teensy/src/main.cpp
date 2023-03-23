@@ -26,9 +26,7 @@ rcl_node_t node;
 rcl_timer_t timer;
 rclc_executor_t executor;
 rcl_allocator_t allocator;
-rcl_publisher_t publisher;
 rcl_publisher_t update_publisher;
-std_msgs__msg__Int32 msg;
 car_msgs__msg__Update update_msg;
 bool micro_ros_init_successful;
 
@@ -39,17 +37,24 @@ enum uros_states {
   AGENT_DISCONNECTED
 } uros_state;
 
+void publish_update_message() {
+    msg.data++;
+
+    update_msg.ms = millis();
+    update_msg.us = micros();
+    std::ignore = rcl_publish(&update_publisher, &update_msg, NULL);
+
+}
+
 void timer_callback(rcl_timer_t * timer, int64_t last_call_time)
 {
   (void) last_call_time;
   if (timer != NULL) {
     std::ignore = rcl_publish(&publisher, &msg, NULL);
-    msg.data++;
-
-    update_msg.ms = millis();
-    std::ignore = rcl_publish(&update_publisher, &update_msg, NULL);
   }
 }
+
+
 
 // Functions create_entities and destroy_entities can take several seconds.
 // In order to reduce this rebuild the library with
@@ -66,32 +71,15 @@ bool create_uros_entities()
   // create node
   rclc_node_init_default(&node, "car_controller", "", &support);
 
-  // create publisher
-  // rclc_publisher_init_best_effort(
-  //   &publisher,
-  //   &node,
-  //   ROSIDL_GET_MSG_TYPE_SUPPORT(std_msgs, msg, Int32),
-  //   "micro_ros_platformio_node_publisher");
-
   rclc_publisher_init_best_effort(
     &update_publisher,
     &node,
     ROSIDL_GET_MSG_TYPE_SUPPORT(car_msgs, msg, Update),
     "car_update");
-    
-
-  // create timer,
-  const unsigned int publish_interval_ms = 10;
-  rclc_timer_init_default(
-    &timer,
-    &support,
-    RCL_MS_TO_NS(publish_interval_ms),
-    timer_callback);
 
   // create executor
   executor = rclc_executor_get_zero_initialized_executor();
   rclc_executor_init(&executor, &support.context, 1, &allocator);
-  rclc_executor_add_timer(&executor, &timer);
 
   return true;
 }
@@ -143,13 +131,25 @@ void maintain_uros_connection() {
   }
 }
 
+bool every_n_ms(uint32_t last_loop_ms, uint32_t loop_ms, uint32_t ms, uint32_t offset = 0) {
+  return ((last_loop_ms-offset) % ms) + (loop_ms - last_loop_ms) >= ms;
+}
 
 void loop() {
+  static uint32_t last_loop_ms = 0;
+  uint32_t loop_ms = millis();
+
   maintain_uros_connection();
+
+  if(every_n_ms(last_loop_ms, loop_ms, 10)) {
+    publish_update_message();
+  }
 
   if (uros_state == AGENT_CONNECTED) {
     digitalWrite(LED_PIN, 1);
   } else {
     digitalWrite(LED_PIN, 0);
   }
+
+  last_loop_ms = loop_ms;
 }
