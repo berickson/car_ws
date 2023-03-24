@@ -165,6 +165,9 @@ public:
 BatterySensor battery_sensor;
 
 
+bool every_n_ms(uint32_t last_loop_ms, uint32_t loop_ms, uint32_t ms, uint32_t offset = 0) {
+  return ((last_loop_ms-offset) % ms) + (loop_ms - last_loop_ms) >= ms;
+}
 
 ///////////////////////////////////////////////
 // ROS
@@ -199,7 +202,8 @@ enum uros_states {
   AGENT_AVAILABLE,
   AGENT_CONNECTED,
   AGENT_DISCONNECTED
-} uros_state;
+} uros_state = WAITING_AGENT;
+;
 
 void rc_command_received(const void * msg)
 {
@@ -258,6 +262,54 @@ void publish_update_message() {
 
     std::ignore = rcl_publish(&update_publisher, &update_message, NULL);
 }
+
+void publish_battery_state_message() {
+  static char frame[] = "base_link";
+  static char location[] = "blue-crash4";
+  battery_state_message.header.stamp.nanosec = rmw_uros_epoch_nanos() | 0xffff;
+  battery_state_message.header.stamp.sec = rmw_uros_epoch_millis() / 1000;
+  battery_state_message.header.frame_id.capacity = sizeof(frame);
+  battery_state_message.header.frame_id.size = sizeof(frame);
+  battery_state_message.header.frame_id.data = frame;
+  battery_state_message.charge = NAN;
+  battery_state_message.current = NAN;
+  battery_state_message.location.capacity = sizeof(location);
+  battery_state_message.location.size = sizeof(location);
+  battery_state_message.location.data = location;
+
+  battery_state_message.cell_voltage.data = cell_voltages;
+  battery_state_message.cell_voltage.size = 4;
+  battery_state_message.cell_voltage.capacity = 4;
+
+  battery_state_message.cell_voltage.data[0] = battery_sensor.v_cell1 - battery_sensor.v_cell0;
+  battery_state_message.cell_voltage.data[1] = battery_sensor.v_cell2 - battery_sensor.v_cell1;
+  battery_state_message.cell_voltage.data[2] = battery_sensor.v_cell3 - battery_sensor.v_cell2;
+  battery_state_message.cell_voltage.data[3] = battery_sensor.v_cell4 - battery_sensor.v_cell3;
+  battery_state_message.voltage = battery_sensor.v_bat;
+  if(battery_sensor.v_cell4 > 2.0) {
+    battery_state_message.cell_voltage.size = 4;
+  } else if(battery_sensor.v_cell3 > 2.0 ) {
+      battery_state_message.cell_voltage.size = 3;
+  } else if(battery_sensor.v_cell2 > 2.0 ) {
+      battery_state_message.cell_voltage.size = 2;
+  } else if(battery_sensor.v_cell1 > 2.0 ) {
+    battery_state_message.cell_voltage.size = 1;
+  } else {
+      battery_state_message.cell_voltage.size = 0;
+  }
+
+  battery_state_message.present = battery_state_message.cell_voltage.size > 0;
+
+  if(battery_state_message.cell_voltage.size > 0) {
+    float cell_average = battery_sensor.v_bat / battery_state_message.cell_voltage.size;
+    battery_state_message.percentage = constrain(map(cell_average,3.5,4.2,0.0,1.0),0.0,1.0);
+  } else {
+    battery_state_message.percentage = NAN;
+  }
+
+  std::ignore = rcl_publish(&battery_state_publisher, &battery_state_message, NULL);
+}
+
 
 // Functions create_entities and destroy_entities can take several seconds.
 // In order to reduce this rebuild the library with
@@ -339,8 +391,36 @@ bool create_uros_entities()
     ON_NEW_DATA
   );
 
-
   return true;
+}
+
+void maintain_uros_connection() {
+  switch (uros_state) {
+    case WAITING_AGENT:
+      EXECUTE_EVERY_N_MS(500, uros_state = (RMW_RET_OK == rmw_uros_ping_agent(100, 1)) ? AGENT_AVAILABLE : WAITING_AGENT;);
+      break;
+    case AGENT_AVAILABLE:
+      uros_state = (true == create_uros_entities()) ? AGENT_CONNECTED : WAITING_AGENT;
+      if (uros_state == WAITING_AGENT) {
+        destroy_uros_entities();
+      } else {
+        rmw_uros_sync_session(100);
+      }
+      break;
+    case AGENT_CONNECTED:
+      EXECUTE_EVERY_N_MS(200, uros_state = (RMW_RET_OK == rmw_uros_ping_agent(100, 1)) ? AGENT_CONNECTED : AGENT_DISCONNECTED;);
+      if (uros_state == AGENT_CONNECTED) {
+        auto timeout_ns = 0;
+        rclc_executor_spin_some(&executor, timeout_ns);
+      }
+      break;
+    case AGENT_DISCONNECTED:
+      destroy_uros_entities();
+      uros_state = WAITING_AGENT;
+      break;
+    default:
+      break;
+  }
 }
 
 void destroy_uros_entities()
@@ -360,8 +440,6 @@ void setup() {
   Serial.begin(921600);
 
   set_microros_serial_transports(Serial);
-
-  uros_state = WAITING_AGENT;
 
   rx_str.attach(pin_rx_str);
   rx_esc.attach(pin_rx_esc);
@@ -396,42 +474,8 @@ void setup() {
   blinker.init(pin_led);
 
   // battery
-  battery_state_message.cell_voltage.data = cell_voltages;
-  battery_state_message.cell_voltage.size = 4;
-  battery_state_message.cell_voltage.capacity = 4;
   battery_sensor.init();
 
-}
-
-void maintain_uros_connection() {
-  switch (uros_state) {
-    case WAITING_AGENT:
-      EXECUTE_EVERY_N_MS(500, uros_state = (RMW_RET_OK == rmw_uros_ping_agent(100, 1)) ? AGENT_AVAILABLE : WAITING_AGENT;);
-      break;
-    case AGENT_AVAILABLE:
-      uros_state = (true == create_uros_entities()) ? AGENT_CONNECTED : WAITING_AGENT;
-      if (uros_state == WAITING_AGENT) {
-        destroy_uros_entities();
-      };
-      break;
-    case AGENT_CONNECTED:
-      EXECUTE_EVERY_N_MS(200, uros_state = (RMW_RET_OK == rmw_uros_ping_agent(100, 1)) ? AGENT_CONNECTED : AGENT_DISCONNECTED;);
-      if (uros_state == AGENT_CONNECTED) {
-        auto timeout_ns = 0;
-        rclc_executor_spin_some(&executor, timeout_ns);
-      }
-      break;
-    case AGENT_DISCONNECTED:
-      destroy_uros_entities();
-      uros_state = WAITING_AGENT;
-      break;
-    default:
-      break;
-  }
-}
-
-bool every_n_ms(uint32_t last_loop_ms, uint32_t loop_ms, uint32_t ms, uint32_t offset = 0) {
-  return ((last_loop_ms-offset) % ms) + (loop_ms - last_loop_ms) >= ms;
 }
 
 void loop() {
@@ -457,51 +501,12 @@ void loop() {
 
   if(every_n_ms(last_loop_ms, loop_ms, 1000)) {
     battery_sensor.execute();
+    publish_battery_state_message();
+  }
 
-    const char * frame = "base_link";
-    const char * location = "blue-crash4";
-    battery_state_message.header.stamp.nanosec = rmw_uros_epoch_nanos() | 0xffff;
-    battery_state_message.header.stamp.sec = rmw_uros_epoch_millis() / 1000;
-    battery_state_message.header.frame_id.capacity = sizeof(frame);
-    battery_state_message.header.frame_id.size = sizeof(frame);
-    battery_state_message.header.frame_id.data = frame;
-    battery_state_message.charge = NAN;
-    battery_state_message.current = NAN;
-    battery_state_message.location.capacity = sizeof(location);
-    battery_state_message.location.size = sizeof(location);
-    battery_state_message.location.data = location;
-    
-    ;
-
-
-    battery_state_message.cell_voltage.data[0] = battery_sensor.v_cell1 - battery_sensor.v_cell0;
-    battery_state_message.cell_voltage.data[1] = battery_sensor.v_cell2 - battery_sensor.v_cell1;
-    battery_state_message.cell_voltage.data[2] = battery_sensor.v_cell3 - battery_sensor.v_cell2;
-    battery_state_message.cell_voltage.data[3] = battery_sensor.v_cell4 - battery_sensor.v_cell3;
-    battery_state_message.voltage = battery_sensor.v_bat;
-    if(battery_sensor.v_cell4 > 2.0) {
-      battery_state_message.cell_voltage.size = 4;
-    } else if(battery_sensor.v_cell3 > 2.0 ) {
-       battery_state_message.cell_voltage.size = 3;
-    } else if(battery_sensor.v_cell2 > 2.0 ) {
-       battery_state_message.cell_voltage.size = 2;
-    } else if(battery_sensor.v_cell1 > 2.0 ) {
-      battery_state_message.cell_voltage.size = 1;
-    } else {
-       battery_state_message.cell_voltage.size = 0;
-    }
-
-    battery_state_message.present = battery_state_message.cell_voltage.size > 0;
-
-    if(battery_state_message.cell_voltage.size > 0) {
-      float cell_average = battery_sensor.v_bat / battery_state_message.cell_voltage.size;
-      battery_state_message.percentage = constrain(map(cell_average,3.5,4.2,0.0,1.0),0.0,1.0);
-    } else {
-      battery_state_message.percentage = NAN;
-    }
-
-    std::ignore = rcl_publish(&battery_state_publisher, &battery_state_message, NULL);
-
+  // sync clock every 10 minutes
+  if(every_n_ms(last_loop_ms, loop_ms, 10*60*1000)) {
+    rmw_uros_sync_session(10);
   }
 
   last_loop_ms = loop_ms;
