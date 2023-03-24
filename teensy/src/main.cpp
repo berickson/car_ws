@@ -11,6 +11,10 @@
 #include <tuple> // for std::ignore
 
 #include "car_msgs/msg/update.h"
+#include "car_msgs/msg/rc_command.h"
+#include "std_srvs/srv/empty.h"
+#include "std_srvs/srv/trigger.h"
+
 
 #include "pwm_input.h"
 #include "servo2.h"
@@ -18,7 +22,7 @@
 #include "quadrature_encoder.h"
 
 
-#define BLUE_CAR
+
 #if defined(BLUE_CAR)
 const int pin_led = 13;
 const int pin_motor_a = 14;
@@ -102,6 +106,7 @@ void motor_c_changed() {
   motor.on_c_change();
 }
 
+///////////////////////////////////////////////
 // ROS
 
 #define EXECUTE_EVERY_N_MS(MS, X)  do { \
@@ -116,7 +121,16 @@ rcl_timer_t timer;
 rclc_executor_t executor;
 rcl_allocator_t allocator;
 rcl_publisher_t update_publisher;
-car_msgs__msg__Update update_msg;
+rcl_subscription_t rc_command_subscription;
+rcl_service_t enable_rc_mode_service;
+rcl_service_t disable_rc_mode_service;
+car_msgs__msg__Update update_message;
+car_msgs__msg__RcCommand rc_command_message;
+std_srvs__srv__Trigger_Request trigger_request_message, trigger_request_message2;
+std_srvs__srv__Trigger_Response trigger_response_message, trigger_response_message2;
+
+
+
 bool micro_ros_init_successful;
 
 enum uros_states {
@@ -126,38 +140,68 @@ enum uros_states {
   AGENT_DISCONNECTED
 } uros_state;
 
+void rc_command_received(const void * msg)
+{
+  // Cast received message to used type
+  const car_msgs__msg__RcCommand * rc_command = (const car_msgs__msg__RcCommand *)msg;
+
+  // Process message
+    // hack: just to debug whether the messages arrive
+    update_message.ax = rc_command->str_us;
+    update_message.ay = rc_command->esc_us;
+    update_message.az = 999;
+
+}
+
+void enable_rc_mode_service_callback(const void * /*request_msg*/, void * response_msg) {
+  update_message.go = true;
+
+  std_srvs__srv__Trigger_Response * res_in = (std_srvs__srv__Trigger_Response *) response_msg;
+  res_in->success = true;
+
+}
+
+void disable_rc_mode_service_callback(const void * /*request_msg*/, void * response_msg) {
+  update_message.go = false;
+
+  std_srvs__srv__Trigger_Response * res_in = (std_srvs__srv__Trigger_Response *) response_msg;
+  res_in->success = true;  
+}
+
+
 void publish_update_message() {
 
-    update_msg.ms = millis();
-    update_msg.us = micros();
-    update_msg.str = str.readMicroseconds();
-    update_msg.esc = esc.readMicroseconds();
+    update_message.ms = millis();
+    update_message.us = micros();
+    update_message.str = str.readMicroseconds();
+    update_message.esc = esc.readMicroseconds();
 
-    update_msg.rx_esc = rx_esc.pulse_us();
-    update_msg.rx_str = rx_str.pulse_us();
+    update_message.rx_esc = rx_esc.pulse_us();
+    update_message.rx_str = rx_str.pulse_us();
 
     noInterrupts();
-    update_msg.spur_us = motor.last_change_us;
-    update_msg.spur_odo = motor.odometer;
+    update_message.spur_us = motor.last_change_us;
+    update_message.spur_odo = motor.odometer;
     interrupts();
 
     noInterrupts();
-    update_msg.odo_fl_a = odo_fl.odometer_a;
-    update_msg.odo_fl_a_us = odo_fl.last_odometer_a_us;
-    update_msg.odo_fl_b = odo_fl.odometer_b;
-    update_msg.odo_fl_b_us = odo_fl.last_odometer_b_us;
-    update_msg.odo_fl_ab_us = odo_fl.odometer_ab_us;
+    update_message.odo_fl_a = odo_fl.odometer_a;
+    update_message.odo_fl_a_us = odo_fl.last_odometer_a_us;
+    update_message.odo_fl_b = odo_fl.odometer_b;
+    update_message.odo_fl_b_us = odo_fl.last_odometer_b_us;
+    update_message.odo_fl_ab_us = odo_fl.odometer_ab_us;
     interrupts();
 
     noInterrupts();
-    update_msg.odo_fr_a = odo_fr.odometer_a;
-    update_msg.odo_fr_a_us = odo_fr.last_odometer_a_us;
-    update_msg.odo_fr_b = odo_fr.odometer_b;
-    update_msg.odo_fr_b_us = odo_fr.last_odometer_b_us;
-    update_msg.odo_fr_ab_us = odo_fr.odometer_ab_us;
+    update_message.odo_fr_a = odo_fr.odometer_a;
+    update_message.odo_fr_a_us = odo_fr.last_odometer_a_us;
+    update_message.odo_fr_b = odo_fr.odometer_b;
+    update_message.odo_fr_b_us = odo_fr.last_odometer_b_us;
+    update_message.odo_fr_ab_us = odo_fr.odometer_ab_us;
     interrupts();
 
-    std::ignore = rcl_publish(&update_publisher, &update_msg, NULL);
+
+    std::ignore = rcl_publish(&update_publisher, &update_message, NULL);
 }
 
 // Functions create_entities and destroy_entities can take several seconds.
@@ -179,11 +223,65 @@ bool create_uros_entities()
     &update_publisher,
     &node,
     ROSIDL_GET_MSG_TYPE_SUPPORT(car_msgs, msg, Update),
-    "car_update");
+    "car/update");
+
+  rclc_subscription_init_best_effort(
+    &rc_command_subscription,
+    &node,
+    ROSIDL_GET_MSG_TYPE_SUPPORT(car_msgs, msg, RcCommand),
+    "car/rc_command"
+  );
+
+  auto trigger_type_support = ROSIDL_GET_SRV_TYPE_SUPPORT(std_srvs, srv, Trigger);
+  
+  rclc_service_init_best_effort(
+    &enable_rc_mode_service, 
+    &node,
+    trigger_type_support, 
+    "/enable_rc_mode");
+
+  rclc_service_init_default(
+    &disable_rc_mode_service, 
+    &node,
+    trigger_type_support, 
+    "/disable_rc_mode");
+  
 
   // create executor
   executor = rclc_executor_get_zero_initialized_executor();
-  rclc_executor_init(&executor, &support.context, 1, &allocator);
+
+  rclc_executor_init(&executor, &support.context, 3, &allocator);
+
+
+  static char empty_string = '\0';
+  trigger_response_message.message.data = &empty_string;
+  trigger_response_message.message.size = 1;
+  trigger_response_message.message.capacity = 1;
+
+  rclc_executor_add_service(
+    &executor,
+    &enable_rc_mode_service,
+    &trigger_request_message,
+    &trigger_response_message,
+    &enable_rc_mode_service_callback
+  );
+
+  rclc_executor_add_service(
+    &executor,
+    &disable_rc_mode_service,
+    &trigger_request_message,
+    &trigger_response_message,
+    &disable_rc_mode_service_callback
+  );
+
+  rclc_executor_add_subscription(
+    &executor,
+    &rc_command_subscription,
+    &rc_command_message,
+    &rc_command_received,
+    ON_NEW_DATA
+  );
+
 
   return true;
 }
@@ -201,6 +299,7 @@ void destroy_uros_entities()
 }
 
 void setup() {
+  Serial.begin(921600);
   set_microros_serial_transports(Serial);
   pinMode(pin_led, OUTPUT);
 
@@ -252,7 +351,8 @@ void maintain_uros_connection() {
     case AGENT_CONNECTED:
       EXECUTE_EVERY_N_MS(200, uros_state = (RMW_RET_OK == rmw_uros_ping_agent(100, 1)) ? AGENT_CONNECTED : AGENT_DISCONNECTED;);
       if (uros_state == AGENT_CONNECTED) {
-        rclc_executor_spin_some(&executor, RCL_MS_TO_NS(100));
+        auto timeout_ns = 0;
+        rclc_executor_spin_some(&executor, timeout_ns);
       }
       break;
     case AGENT_DISCONNECTED:
@@ -273,6 +373,7 @@ void loop() {
   uint32_t loop_ms = millis();
 
   maintain_uros_connection();
+
 
   if(every_n_ms(last_loop_ms, loop_ms, 10)) {
 
