@@ -13,7 +13,6 @@
 #include "car_msgs/msg/update.h"
 #include "car_msgs/msg/rc_command.h"
 #include "std_srvs/srv/empty.h"
-#include "std_srvs/srv/trigger.h"
 
 
 #include "pwm_input.h"
@@ -126,9 +125,8 @@ rcl_service_t enable_rc_mode_service;
 rcl_service_t disable_rc_mode_service;
 car_msgs__msg__Update update_message;
 car_msgs__msg__RcCommand rc_command_message;
-std_srvs__srv__Trigger_Request trigger_request_message, trigger_request_message2;
-std_srvs__srv__Trigger_Response trigger_response_message, trigger_response_message2;
-
+std_srvs__srv__Empty_Request empty_request_message;
+std_srvs__srv__Empty_Response empty_response_message;
 
 
 bool micro_ros_init_successful;
@@ -153,19 +151,13 @@ void rc_command_received(const void * msg)
 
 }
 
-void enable_rc_mode_service_callback(const void * /*request_msg*/, void * response_msg) {
+void enable_rc_mode_service_callback(const void * /*request_msg*/, void * /*response_msg*/) {
   update_message.go = true;
-
-  std_srvs__srv__Trigger_Response * res_in = (std_srvs__srv__Trigger_Response *) response_msg;
-  res_in->success = true;
-
 }
 
-void disable_rc_mode_service_callback(const void * /*request_msg*/, void * response_msg) {
+void disable_rc_mode_service_callback(const void * /*request_msg*/, void * /*response_msg*/) {
   update_message.go = false;
 
-  std_srvs__srv__Trigger_Response * res_in = (std_srvs__srv__Trigger_Response *) response_msg;
-  res_in->success = true;  
 }
 
 
@@ -232,18 +224,18 @@ bool create_uros_entities()
     "car/rc_command"
   );
 
-  auto trigger_type_support = ROSIDL_GET_SRV_TYPE_SUPPORT(std_srvs, srv, Trigger);
+  auto empty_type_support = ROSIDL_GET_SRV_TYPE_SUPPORT(std_srvs, srv, Empty);
   
   rclc_service_init_best_effort(
     &enable_rc_mode_service, 
     &node,
-    trigger_type_support, 
+    empty_type_support, 
     "/enable_rc_mode");
 
   rclc_service_init_default(
     &disable_rc_mode_service, 
     &node,
-    trigger_type_support, 
+    empty_type_support, 
     "/disable_rc_mode");
   
 
@@ -253,24 +245,19 @@ bool create_uros_entities()
   rclc_executor_init(&executor, &support.context, 3, &allocator);
 
 
-  static char empty_string = '\0';
-  trigger_response_message.message.data = &empty_string;
-  trigger_response_message.message.size = 1;
-  trigger_response_message.message.capacity = 1;
-
   rclc_executor_add_service(
     &executor,
     &enable_rc_mode_service,
-    &trigger_request_message,
-    &trigger_response_message,
+    &empty_request_message,
+    &empty_response_message,
     &enable_rc_mode_service_callback
   );
 
   rclc_executor_add_service(
     &executor,
     &disable_rc_mode_service,
-    &trigger_request_message,
-    &trigger_response_message,
+    &empty_request_message,
+    &empty_response_message,
     &disable_rc_mode_service_callback
   );
 
