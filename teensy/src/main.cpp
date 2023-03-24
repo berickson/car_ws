@@ -13,6 +13,7 @@
 #include "car_msgs/msg/update.h"
 #include "car_msgs/msg/rc_command.h"
 #include "std_srvs/srv/empty.h"
+#include "sensor_msgs/msg/battery_state.h"
 
 
 #include "pwm_input.h"
@@ -68,6 +69,7 @@ MotorEncoder motor(pin_motor_a, pin_motor_b, pin_motor_c);
 
 Blinker blinker;
 
+float cell_voltages[4];
 
 ///////////////////////////////////////////////
 // Interrupt handlers
@@ -109,6 +111,62 @@ void motor_c_changed() {
 }
 
 ///////////////////////////////////////////////
+// Misc Code
+class BatterySensor {
+public:
+
+  int resolution_bits = 10;
+  float r1 = 102;
+  float r2 = 422;
+  float max_reading = 1024;
+  float scale = (r1+r2) * 3.3 / (max_reading * r2);
+
+  float v_bat = 0;
+  float v_cell0 = 0;
+  float v_cell1 = 0;
+  float v_cell2 = 0;
+  float v_cell3 = 0;
+  float v_cell4 = 0;
+
+
+
+  void init() {
+    analogReadResolution(resolution_bits);	
+    max_reading = pow(2, resolution_bits);
+    scale = (r1+r2) * 3.3 / (max_reading * r1);
+  }
+
+  void execute() {
+#if defined(BLUE_CAR)
+    v_bat = analogRead(pin_vbat_sense) * 12.47/744;
+    v_cell0 = analogRead(pin_cell0_sense) * scale;
+    v_cell1 = analogRead(pin_cell1_sense)  * 4.161/246;
+    v_cell2 = analogRead(pin_cell2_sense)  * 8.32/497;
+    v_cell3 = analogRead(pin_cell3_sense) * 12.48/744;
+    v_cell4 = analogRead(pin_cell4_sense) * 12.48/744;
+
+    /* 
+    // calibration logging
+    char buffer[200];
+    sprintf(buffer, "V Cells: bat %4.3f cell0: %4.3f cell1: %4.3f cell2: %4.3f cell3: %4.3f cell4: %4.3f", v_bat, v_cell0, v_cell1, v_cell2, v_cell3, v_cell4);
+    nh.loginfo(buffer);
+    sprintf(buffer, "Raw Cells: bat %d cell0: %d cell1: %d cell2: %d cell3: %d cell4: %d", analogRead(pin_vbat_sense), analogRead(pin_cell0_sense), analogRead(pin_cell1_sense), analogRead(pin_cell2_sense), analogRead(pin_cell3_sense), analogRead(pin_cell4_sense));
+    nh.loginfo(buffer);
+    */
+#elif defined(ORANGE_CAR)
+    // constants below based on 220k and 1M resistor, 1023 steps and 3.3 reference voltage
+    v_bat = analogRead(pin_vbat_sense) * ((3.3/1023.) / 220.)*(220.+1000.);
+#else
+#error "voltage not defined for this car"
+#endif
+  }
+};
+
+BatterySensor battery_sensor;
+
+
+
+///////////////////////////////////////////////
 // ROS
 
 #define EXECUTE_EVERY_N_MS(MS, X)  do { \
@@ -123,11 +181,13 @@ rcl_timer_t timer;
 rclc_executor_t executor;
 rcl_allocator_t allocator;
 rcl_publisher_t update_publisher;
+rcl_publisher_t battery_state_publisher;
 rcl_subscription_t rc_command_subscription;
 rcl_service_t enable_rc_mode_service;
 rcl_service_t disable_rc_mode_service;
 car_msgs__msg__Update update_message;
 car_msgs__msg__RcCommand rc_command_message;
+sensor_msgs__msg__BatteryState battery_state_message;
 std_srvs__srv__Empty_Request empty_request_message;
 std_srvs__srv__Empty_Response empty_response_message;
 
@@ -219,6 +279,13 @@ bool create_uros_entities()
     &node,
     ROSIDL_GET_MSG_TYPE_SUPPORT(car_msgs, msg, Update),
     "car/update");
+  
+  rclc_publisher_init_best_effort(
+    &battery_state_publisher,
+    &node,
+    ROSIDL_GET_MSG_TYPE_SUPPORT(sensor_msgs, msg, BatteryState),
+    "car/battery"
+  );
 
   rclc_subscription_init_best_effort(
     &rc_command_subscription,
@@ -282,6 +349,7 @@ void destroy_uros_entities()
   (void) rmw_uros_set_context_entity_destroy_session_timeout(rmw_context, 0);
   
   std::ignore = rcl_publisher_fini(&update_publisher, &node);
+  std::ignore = rcl_publisher_fini(&battery_state_publisher, &node);
   std::ignore = rcl_timer_fini(&timer);
   std::ignore = rclc_executor_fini(&executor);
   std::ignore = rcl_node_fini(&node);
@@ -290,6 +358,7 @@ void destroy_uros_entities()
 
 void setup() {
   Serial.begin(921600);
+
   set_microros_serial_transports(Serial);
 
   uros_state = WAITING_AGENT;
@@ -325,6 +394,12 @@ void setup() {
   attachInterrupt(pin_odo_fr_b, odo_fr_b_changed, CHANGE);
 
   blinker.init(pin_led);
+
+  // battery
+  battery_state_message.cell_voltage.data = cell_voltages;
+  battery_state_message.cell_voltage.size = 4;
+  battery_state_message.cell_voltage.capacity = 4;
+  battery_sensor.init();
 
 }
 
@@ -378,6 +453,55 @@ void loop() {
     }
 
     publish_update_message();
+  }
+
+  if(every_n_ms(last_loop_ms, loop_ms, 1000)) {
+    battery_sensor.execute();
+
+    const char * frame = "base_link";
+    const char * location = "blue-crash4";
+    battery_state_message.header.stamp.nanosec = rmw_uros_epoch_nanos() | 0xffff;
+    battery_state_message.header.stamp.sec = rmw_uros_epoch_millis() / 1000;
+    battery_state_message.header.frame_id.capacity = sizeof(frame);
+    battery_state_message.header.frame_id.size = sizeof(frame);
+    battery_state_message.header.frame_id.data = frame;
+    battery_state_message.charge = NAN;
+    battery_state_message.current = NAN;
+    battery_state_message.location.capacity = sizeof(location);
+    battery_state_message.location.size = sizeof(location);
+    battery_state_message.location.data = location;
+    
+    ;
+
+
+    battery_state_message.cell_voltage.data[0] = battery_sensor.v_cell1 - battery_sensor.v_cell0;
+    battery_state_message.cell_voltage.data[1] = battery_sensor.v_cell2 - battery_sensor.v_cell1;
+    battery_state_message.cell_voltage.data[2] = battery_sensor.v_cell3 - battery_sensor.v_cell2;
+    battery_state_message.cell_voltage.data[3] = battery_sensor.v_cell4 - battery_sensor.v_cell3;
+    battery_state_message.voltage = battery_sensor.v_bat;
+    if(battery_sensor.v_cell4 > 2.0) {
+      battery_state_message.cell_voltage.size = 4;
+    } else if(battery_sensor.v_cell3 > 2.0 ) {
+       battery_state_message.cell_voltage.size = 3;
+    } else if(battery_sensor.v_cell2 > 2.0 ) {
+       battery_state_message.cell_voltage.size = 2;
+    } else if(battery_sensor.v_cell1 > 2.0 ) {
+      battery_state_message.cell_voltage.size = 1;
+    } else {
+       battery_state_message.cell_voltage.size = 0;
+    }
+
+    battery_state_message.present = battery_state_message.cell_voltage.size > 0;
+
+    if(battery_state_message.cell_voltage.size > 0) {
+      float cell_average = battery_sensor.v_bat / battery_state_message.cell_voltage.size;
+      battery_state_message.percentage = constrain(map(cell_average,3.5,4.2,0.0,1.0),0.0,1.0);
+    } else {
+      battery_state_message.percentage = NAN;
+    }
+
+    std::ignore = rcl_publish(&battery_state_publisher, &battery_state_message, NULL);
+
   }
 
   last_loop_ms = loop_ms;
