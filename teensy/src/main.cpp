@@ -19,6 +19,7 @@
 #include "servo2.h"
 #include "motor_encoder.h"
 #include "quadrature_encoder.h"
+#include "blinker.h"
 
 
 
@@ -64,6 +65,8 @@ QuadratureEncoder odo_fl(pin_odo_fl_a, pin_odo_fl_b);
 QuadratureEncoder odo_fr(pin_odo_fr_a, pin_odo_fr_b);
 
 MotorEncoder motor(pin_motor_a, pin_motor_b, pin_motor_c);
+
+Blinker blinker;
 
 
 ///////////////////////////////////////////////
@@ -288,7 +291,6 @@ void destroy_uros_entities()
 void setup() {
   Serial.begin(921600);
   set_microros_serial_transports(Serial);
-  pinMode(pin_led, OUTPUT);
 
   uros_state = WAITING_AGENT;
 
@@ -321,6 +323,8 @@ void setup() {
   attachInterrupt(pin_odo_fl_b, odo_fl_b_changed, CHANGE);
   attachInterrupt(pin_odo_fr_a, odo_fr_a_changed, CHANGE);
   attachInterrupt(pin_odo_fr_b, odo_fr_b_changed, CHANGE);
+
+  blinker.init(pin_led);
 
 }
 
@@ -359,6 +363,7 @@ void loop() {
   static uint32_t last_loop_ms = 0;
   uint32_t loop_ms = millis();
 
+  blinker.execute();
   maintain_uros_connection();
 
 
@@ -373,12 +378,6 @@ void loop() {
     }
 
     publish_update_message();
-  }
-
-  if (uros_state == AGENT_CONNECTED) {
-    digitalWrite(pin_led, 1);
-  } else {
-    digitalWrite(pin_led, 0);
   }
 
   last_loop_ms = loop_ms;
