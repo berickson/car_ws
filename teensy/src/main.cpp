@@ -394,6 +394,19 @@ bool create_uros_entities()
   return true;
 }
 
+void destroy_uros_entities()
+{
+  rmw_context_t * rmw_context = rcl_context_get_rmw_context(&support.context);
+  (void) rmw_uros_set_context_entity_destroy_session_timeout(rmw_context, 0);
+  
+  std::ignore = rcl_publisher_fini(&update_publisher, &node);
+  std::ignore = rcl_publisher_fini(&battery_state_publisher, &node);
+  std::ignore = rcl_timer_fini(&timer);
+  std::ignore = rclc_executor_fini(&executor);
+  std::ignore = rcl_node_fini(&node);
+  std::ignore = rclc_support_fini(&support);
+}
+
 void maintain_uros_connection() {
   switch (uros_state) {
     case WAITING_AGENT:
@@ -423,18 +436,7 @@ void maintain_uros_connection() {
   }
 }
 
-void destroy_uros_entities()
-{
-  rmw_context_t * rmw_context = rcl_context_get_rmw_context(&support.context);
-  (void) rmw_uros_set_context_entity_destroy_session_timeout(rmw_context, 0);
-  
-  std::ignore = rcl_publisher_fini(&update_publisher, &node);
-  std::ignore = rcl_publisher_fini(&battery_state_publisher, &node);
-  std::ignore = rcl_timer_fini(&timer);
-  std::ignore = rclc_executor_fini(&executor);
-  std::ignore = rcl_node_fini(&node);
-  std::ignore = rclc_support_fini(&support);
-}
+
 
 void setup() {
   Serial.begin(921600);
