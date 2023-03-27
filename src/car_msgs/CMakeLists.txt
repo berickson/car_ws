@@ -31,6 +31,9 @@ find_package(rosidl_default_generators REQUIRED)
 rosidl_generate_interfaces(${PROJECT_NAME}
   "msg/Update.msg"
   "msg/RcCommand.msg"
+  "msg/SpeedCommand.msg"
+  "msg/Speedometer.msg"
+  "msg/SteerCommand.msg"
   DEPENDENCIES builtin_interfaces std_msgs
  )
 
