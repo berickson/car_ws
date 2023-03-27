@@ -1,5 +1,3 @@
-std_msgs/Header header
-
 uint32 ms
 uint32 us
 float32 v_bat
