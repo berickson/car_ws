@@ -17,7 +17,7 @@ using std::placeholders::_1;
 class CarInstrumentsNode : public rclcpp::Node {
      public:
         CarInstrumentsNode();
-        void update_callback(const car_msgs::msg::Update::ConstPtr& update);
+        void update_callback(const car_msgs::msg::Update::SharedPtr update);
 
         Speedometer front_right_wheel_;
         Speedometer front_left_wheel_;
@@ -61,13 +61,11 @@ CarInstrumentsNode::CarInstrumentsNode() : Node("car_instruments") {
     front_left_wheel_.meters_per_tick = front_meters_per_odometer_tick;
     motor_.meters_per_tick = motor_meters_per_odometer_tick;
 
-    bool latch = true;
     fl_speedometer_publisher_ = this->create_publisher<car_msgs::msg::Speedometer> ("/car/speedometers/fl", 10);
     fr_speedometer_publisher_ = this->create_publisher<car_msgs::msg::Speedometer> ("/car/speedometers/fr", 10);
     motor_speedometer_publisher_ = this->create_publisher<car_msgs::msg::Speedometer> ("/car/speedometers/motor", 10);
     ackerman_fr_publisher_ = this->create_publisher<geometry_msgs::msg::PoseStamped> ("/car/ackermann/fr", 10);
     tf_broadcaster_ = std::make_unique<tf2_ros::TransformBroadcaster>(*this);
-    const int queue_length=5; // 1 ensures latest message
     update_sub_ = this->create_subscription<car_msgs::msg::Update> ("/car/update", rclcpp::SensorDataQoS(), std::bind(&CarInstrumentsNode::update_callback, this, _1));
 
 }
@@ -128,7 +126,7 @@ Angle CarInstrumentsNode::angle_for_steering(int str) {
   return Angle::degrees(t.lookup(str));
 }
 
-void CarInstrumentsNode::update_callback(const car_msgs::msg::Update::ConstPtr& d){
+void CarInstrumentsNode::update_callback(const car_msgs::msg::Update::SharedPtr d){
     // ROS_INFO("got car update ms: %d us: %d", d->ms, d->us);
     ++update_count_;
 
@@ -143,15 +141,15 @@ void CarInstrumentsNode::update_callback(const car_msgs::msg::Update::ConstPtr& 
                                          d->odo_fr_b, d->odo_fr_b_us);
 
     auto fl = front_left_wheel_.get_speedometer_message();
-    fl.header = d->header;
+    // fl.header = d->header;
     fl_speedometer_publisher_->publish(fl);
 
     auto fr = front_right_wheel_.get_speedometer_message();
-    fr.header = d->header;
+    // fr.header = d->header;
     fr_speedometer_publisher_->publish(front_right_wheel_.get_speedometer_message());
 
     auto motor = motor_.get_speedometer_message();
-    motor.header = d->header;
+    // motor.header = d->header;
     motor_speedometer_publisher_->publish(motor);
 
     if(update_count_==1) {
@@ -174,7 +172,7 @@ void CarInstrumentsNode::update_callback(const car_msgs::msg::Update::ConstPtr& 
 
     Point rear_position = ackermann_.rear_position();
     
-    pose_msg.header.stamp = d->header.stamp;
+    //pose_msg.header.stamp = d->header.stamp;
     pose_msg.header.frame_id = "odom";
     // pose_msg.child_frame_id = turtle_name;
     pose_msg.pose.position.x = rear_position.x;
@@ -192,7 +190,7 @@ void CarInstrumentsNode::update_callback(const car_msgs::msg::Update::ConstPtr& 
 
     geometry_msgs::msg::TransformStamped tf_msg;
 
-    tf_msg.header.stamp = d->header.stamp;
+    // tf_msg.header.stamp = d->header.stamp;
     tf_msg.header.frame_id = "odom";
     tf_msg.child_frame_id = "base_link";
     tf_msg.transform.translation.x = rear_position.x;
