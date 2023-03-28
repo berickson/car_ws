@@ -230,6 +230,13 @@ void disable_rc_mode_service_callback(const void * /*request_msg*/, void * /*res
 
 void publish_update_message() {
 
+    static char frame[] = "base_link";
+    update_message.header.stamp.nanosec = rmw_uros_epoch_nanos() | 0xffff;
+    update_message.header.stamp.sec = rmw_uros_epoch_millis() / 1000;
+    update_message.header.frame_id.capacity = sizeof(frame);
+    update_message.header.frame_id.size = sizeof(frame);
+    update_message.header.frame_id.data = frame;
+
     update_message.ms = millis();
     update_message.us = micros();
     update_message.str = str.readMicroseconds();
