@@ -20,7 +20,14 @@
 #include "servo2.h"
 #include "motor_encoder.h"
 #include "quadrature_encoder.h"
+#include "task.h"
+#include "fsm.h"
+#include "manual_mode.h"
+#include "remote_mode.h"
+#include "rx_events.h"
 #include "blinker.h"
+
+
 
 // all these ugly pushes are because the 9150 has a lot of warnings
 // the .h file must be included in one time in a source file
@@ -63,12 +70,19 @@ const int pin_cell0_sense = A18;
 #endif
 
 ///////////////////////////////////////////////
+// helpers
+
+#define count_of(a) (sizeof(a)/sizeof(a[0]))
+
+///////////////////////////////////////////////
 // Globals
 
 Mpu9150 mpu9150;
 
 PwmInput rx_str;
 PwmInput rx_esc;
+
+RxEvents rx_events;
 
 Servo2 str;
 Servo2 esc;
@@ -181,6 +195,31 @@ bool every_n_ms(uint32_t last_loop_ms, uint32_t loop_ms, uint32_t ms, uint32_t o
 }
 
 ///////////////////////////////////////////////
+// modes
+
+ManualMode manual_mode;
+RemoteMode remote_mode;
+
+Task * tasks[] = {&manual_mode, &remote_mode};
+
+Fsm::Edge edges[] = {
+  {"manual", "remote", "remote"},
+  {"remote", "manual", "manual"},
+  {"remote", "non-neutral", "manual"},
+  {"remote", "done", "manual"}
+};
+
+Fsm modes(tasks, count_of(tasks), edges, count_of(edges));
+
+void command_manual() {
+  modes.set_event("manual");
+}
+
+void command_remote_control() {
+  modes.set_event("remote");
+}
+
+///////////////////////////////////////////////
 // ROS
 
 #define EXECUTE_EVERY_N_MS(MS, X)  do { \
@@ -216,19 +255,24 @@ enum uros_states {
 } uros_state = WAITING_AGENT;
 ;
 
-void rc_command_received(const void * msg)
-{
+void rc_command_received(const void * msg) {
   // Cast received message to used type
   const car_msgs__msg__RcCommand * rc_command = (const car_msgs__msg__RcCommand *)msg;
+  remote_mode.command_steer_and_esc(rc_command->str_us,  rc_command->esc_us);
 }
 
+
+void command_remote_control();  // forward decl
+void command_manual();          // forward decl
+
 void enable_rc_mode_service_callback(const void * /*request_msg*/, void * /*response_msg*/) {
-  update_message.go = true;
+
+  command_remote_control();
 }
 
 void disable_rc_mode_service_callback(const void * /*request_msg*/, void * /*response_msg*/) {
-  update_message.go = false;
 
+  command_manual();
 }
 
 
@@ -281,6 +325,8 @@ void publish_update_message() {
     update_message.mpu_deg_roll = mpu9150.roll * 180. / M_PI;
 
     update_message.mpu_deg_f = mpu9150.temperature /340.0 + 35.0;
+
+    update_message.go = (modes.current_task == &remote_mode);
 
     std::ignore = rcl_publish(&update_publisher, &update_message, NULL);
 }
@@ -460,6 +506,9 @@ void maintain_uros_connection() {
 
 
 
+///////////////////////////////////////////////
+// setup and loop
+
 void setup() {
   Serial.begin(921600);
 
@@ -497,10 +546,13 @@ void setup() {
 
   blinker.init(pin_led);
 
-  // battery
   battery_sensor.init();
+
+  modes.begin();
+
   Wire.begin();
   mpu9150.setup();
+
 #if defined(BLUE_CAR)
   mpu9150.ax_bias = 0;
   mpu9150.ay_bias = 0;
@@ -529,7 +581,21 @@ void loop() {
   uint32_t loop_ms = millis();
 
   blinker.execute();
+
+  rx_events.process_pulses(rx_str.pulse_us(), rx_esc.pulse_us());
+  bool new_rx_event = rx_events.get_event();
+  // send events through modes state machine
+  if(new_rx_event) {
+    if(!rx_events.current.equals(RxEvent('C','N'))) {
+      modes.set_event("non-neutral");
+    }
+  } 
+
   maintain_uros_connection();
+
+  if(every_n_ms(last_loop_ms, loop_ms, 10)) {
+    modes.execute();
+  }
 
   // mpu9150 execute takes about 3ms when there is an interrupt,
   // and this messes up the perfect 10ms update timings.  Running it at
@@ -540,13 +606,13 @@ void loop() {
 
   if(every_n_ms(last_loop_ms, loop_ms, 10)) {
 
-    if(rx_str.pulse_us() > 0 && rx_esc.pulse_us() > 0) {
-      str.writeMicroseconds(rx_str.pulse_us());
-      esc.writeMicroseconds(rx_esc.pulse_us());
-    } else {
-      esc.writeMicroseconds(1500);
-      str.writeMicroseconds(1500);
-    }
+    // if(rx_str.pulse_us() > 0 && rx_esc.pulse_us() > 0) {
+    //   str.writeMicroseconds(rx_str.pulse_us());
+    //   esc.writeMicroseconds(rx_esc.pulse_us());
+    // } else {
+    //   esc.writeMicroseconds(1500);
+    //   str.writeMicroseconds(1500);
+    // }
 
     publish_update_message();
   }
