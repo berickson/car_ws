@@ -141,15 +141,15 @@ void CarInstrumentsNode::update_callback(const car_msgs::msg::Update::SharedPtr 
                                          d->odo_fr_b, d->odo_fr_b_us);
 
     auto fl = front_left_wheel_.get_speedometer_message();
-    // fl.header = d->header;
+    fl.header = d->header;
     fl_speedometer_publisher_->publish(fl);
 
     auto fr = front_right_wheel_.get_speedometer_message();
-    // fr.header = d->header;
-    fr_speedometer_publisher_->publish(front_right_wheel_.get_speedometer_message());
+    fr.header = d->header;
+    fr_speedometer_publisher_->publish(fr);
 
     auto motor = motor_.get_speedometer_message();
-    // motor.header = d->header;
+    motor.header = d->header;
     motor_speedometer_publisher_->publish(motor);
 
     if(update_count_==1) {
@@ -161,10 +161,6 @@ void CarInstrumentsNode::update_callback(const car_msgs::msg::Update::SharedPtr 
             Angle outside_wheel_angle = angle_for_steering(d->rx_str);
             ackermann_.move_right_wheel(outside_wheel_angle, wheel_distance_meters,
                                     yaw);
-
-            // br.sendTransform(transformStamped);
-                        
-
         } 
     }
     
@@ -172,7 +168,7 @@ void CarInstrumentsNode::update_callback(const car_msgs::msg::Update::SharedPtr 
 
     Point rear_position = ackermann_.rear_position();
     
-    //pose_msg.header.stamp = d->header.stamp;
+    pose_msg.header.stamp = d->header.stamp;
     pose_msg.header.frame_id = "odom";
     // pose_msg.child_frame_id = turtle_name;
     pose_msg.pose.position.x = rear_position.x;
