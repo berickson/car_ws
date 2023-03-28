@@ -22,7 +22,16 @@
 #include "quadrature_encoder.h"
 #include "blinker.h"
 
+// all these ugly pushes are because the 9150 has a lot of warnings
+// the .h file must be included in one time in a source file
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wunused-variable"
+#pragma GCC diagnostic ignored "-Wunused-value"
+#pragma GCC diagnostic ignored "-Wunused-but-set-variable"
+#include <MPU9150_9Axis_MotionApps41.h>
+#pragma GCC diagnostic pop
 
+#include "mpu9150.h"
 
 #if defined(BLUE_CAR)
 const int pin_led = 13;
@@ -55,6 +64,8 @@ const int pin_cell0_sense = A18;
 
 ///////////////////////////////////////////////
 // Globals
+
+Mpu9150 mpu9150;
 
 PwmInput rx_str;
 PwmInput rx_esc;
@@ -209,13 +220,6 @@ void rc_command_received(const void * msg)
 {
   // Cast received message to used type
   const car_msgs__msg__RcCommand * rc_command = (const car_msgs__msg__RcCommand *)msg;
-
-  // Process message
-    // hack: just to debug whether the messages arrive
-    update_message.ax = rc_command->str_us;
-    update_message.ay = rc_command->esc_us;
-    update_message.az = 999;
-
 }
 
 void enable_rc_mode_service_callback(const void * /*request_msg*/, void * /*response_msg*/) {
@@ -231,7 +235,7 @@ void disable_rc_mode_service_callback(const void * /*request_msg*/, void * /*res
 void publish_update_message() {
 
     static char frame[] = "base_link";
-    update_message.header.stamp.nanosec = rmw_uros_epoch_nanos() | 0xffff;
+    update_message.header.stamp.nanosec = rmw_uros_epoch_nanos() % 1000000000ULL;
     update_message.header.stamp.sec = rmw_uros_epoch_millis() / 1000;
     update_message.header.frame_id.capacity = sizeof(frame);
     update_message.header.frame_id.size = sizeof(frame);
@@ -241,6 +245,10 @@ void publish_update_message() {
     update_message.us = micros();
     update_message.str = str.readMicroseconds();
     update_message.esc = esc.readMicroseconds();
+
+    update_message.ax = mpu9150.ax;
+    update_message.ay = mpu9150.ay;
+    update_message.az = mpu9150.az;
 
     update_message.rx_esc = rx_esc.pulse_us();
     update_message.rx_str = rx_str.pulse_us();
@@ -266,6 +274,13 @@ void publish_update_message() {
     update_message.odo_fr_ab_us = odo_fr.odometer_ab_us;
     interrupts();
 
+    update_message.v_bat = battery_state_message.voltage;
+
+    update_message.mpu_deg_yaw = mpu9150.heading();
+    update_message.mpu_deg_pitch = mpu9150.pitch * 180. / M_PI;
+    update_message.mpu_deg_roll = mpu9150.roll * 180. / M_PI;
+
+    update_message.mpu_deg_f = mpu9150.temperature /340.0 + 35.0;
 
     std::ignore = rcl_publish(&update_publisher, &update_message, NULL);
 }
@@ -484,6 +499,28 @@ void setup() {
 
   // battery
   battery_sensor.init();
+  Wire.begin();
+  mpu9150.setup();
+#if defined(BLUE_CAR)
+  mpu9150.ax_bias = 0;
+  mpu9150.ay_bias = 0;
+  mpu9150.az_bias = 7893.51;
+  mpu9150.rest_a_mag =  7893.51;
+  mpu9150.zero_adjust = Quaternion(0.707, 0.024, -0.024, 0.707);
+  mpu9150.yaw_slope_rads_per_ms  = -0.0000000680;
+  mpu9150.yaw_actual_per_raw = 1;
+#elif defined(ORANGE_CAR)
+  mpu9150.ax_bias = 7724.52;
+  mpu9150.ay_bias = -1458.47;
+  mpu9150.az_bias = 715.62;
+  mpu9150.rest_a_mag = 7893.51;
+  mpu9150.zero_adjust = Quaternion(-0.07, 0.67, -0.07, 0.73);
+  mpu9150.yaw_slope_rads_per_ms  = (2.7 / (10 * 60 * 1000)) * PI / 180;
+  mpu9150.yaw_actual_per_raw = (3600. / (3600 - 29.0 )); //1.0; // (360.*10.)/(360.*10.-328);// 1.00; // 1.004826221;
+#else
+#error "Car not defined for MPU"
+#endif
+  mpu9150.zero_heading();
 
 }
 
@@ -494,6 +531,12 @@ void loop() {
   blinker.execute();
   maintain_uros_connection();
 
+  // mpu9150 execute takes about 3ms when there is an interrupt,
+  // and this messes up the perfect 10ms update timings.  Running it at
+  // 2ms offset from the updates keeps it from interfering
+  if(every_n_ms(last_loop_ms, loop_ms, 10, 2)) {
+    mpu9150.execute();
+  }
 
   if(every_n_ms(last_loop_ms, loop_ms, 10)) {
 
