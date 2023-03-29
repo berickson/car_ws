@@ -317,7 +317,7 @@ void CarControllerNode::car_update_topic_callback(const car_msgs::msg::Update::S
       esc_us_float += velocity_k_p * v_error + velocity_k_a * a_error ;
 
       // handle stopped case
-      if(fabs(meters_per_second)==0 && fabs(motor.v_smooth)<0.01) {
+      if(fabs(meters_per_second)<0.02 && fabs(motor.v_smooth)<0.02) {
         esc_us_float = 1500;
         str_us_float = 1500;
       }
