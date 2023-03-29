@@ -56,6 +56,33 @@ class CarControllerNode : public rclcpp::Node
     : Node("car_controller")
     {
 
+      {
+        auto param_desc = rcl_interfaces::msg::ParameterDescriptor{};
+        param_desc.description = "Velocity PID k_p term";
+        param_desc.type = rclcpp::ParameterType::PARAMETER_DOUBLE;
+        
+        rcl_interfaces::msg::FloatingPointRange range;
+        range.set__from_value(0.0).set__to_value(10.0);
+
+        param_desc.floating_point_range= {range};
+
+        this->declare_parameter("velocity_k_p", 2.0, param_desc);
+      }
+
+
+      {
+        auto param_desc = rcl_interfaces::msg::ParameterDescriptor{};
+        param_desc.description = "Velocity PID k_a term";
+        param_desc.type = rclcpp::ParameterType::PARAMETER_DOUBLE;
+        
+        rcl_interfaces::msg::FloatingPointRange range;
+        range.set__from_value(0.0).set__to_value(10.0);
+
+        param_desc.floating_point_range= {range};
+
+        this->declare_parameter("velocity_k_a", 0.3, param_desc);
+      }
+
       front_right_wheel_.meters_per_tick = front_meters_per_odometer_tick;
       front_left_wheel_.meters_per_tick = front_meters_per_odometer_tick;
       motor_.meters_per_tick = motor_meters_per_odometer_tick;
@@ -74,9 +101,6 @@ class CarControllerNode : public rclcpp::Node
       cmd_vel_subscription_ = this->create_subscription<geometry_msgs::msg::Twist>(
       "cmd_vel", 1, std::bind(&CarControllerNode::cmd_vel_topic_callback, this, _1));
 
-      motor_speedometer_subscription_ = this->create_subscription<car_msgs::msg::Speedometer>(
-      "/car/speedometers/motor", 1, std::bind(&CarControllerNode::motor_speedometer_topic_callback, this, _1));
-
       velocity_pid.k_p = 1.0;
       velocity_pid.k_i = 0.0;
       velocity_pid.k_d = 10.0;
@@ -84,6 +108,9 @@ class CarControllerNode : public rclcpp::Node
     }
 
   private:
+    float esc_us_float = 1500;
+    float str_us_float = 1500;
+
     int steering_for_angle(Angle theta);
     int steering_for_curvature(Angle theta_per_meter) const;
     Angle angle_for_steering(int str);
@@ -109,54 +136,22 @@ class CarControllerNode : public rclcpp::Node
 
     std::unique_ptr<tf2_ros::TransformBroadcaster> tf_broadcaster_;
 
+    geometry_msgs::msg::Twist::SharedPtr cmd_vel_message;
+    rclcpp::Time cmd_vel_receive_time;
+
 
     Ackermann ackermann_;
     car_msgs::msg::Speedometer last_fr_;
     car_msgs::msg::Speedometer last_fl_;
     car_msgs::msg::Speedometer last_motor_;
 
-    void motor_speedometer_topic_callback(car_msgs::msg::Speedometer::SharedPtr msg)
-    {
-      RCLCPP_INFO_ONCE(this->get_logger(), "Receiving speedometer messages");
-      speedometer_message = msg;
-    }
 
-
-    void cmd_vel_topic_callback(const geometry_msgs::msg::Twist::SharedPtr msg) const
+    void cmd_vel_topic_callback(geometry_msgs::msg::Twist::SharedPtr msg)
     {
       RCLCPP_INFO_ONCE(this->get_logger(), "Receiving cmd_vel messages");
-      // sanity checks
-      if(
-        msg->linear.y != 0.0 
-        || msg->linear.z != 0.0
-        || msg->angular.x != 0.0
-        || msg->angular.y != 0.0
-      ) {
-        RCLCPP_WARN_ONCE (this->get_logger(), "Ingoring invalid cmd_vel, must only have linear.x and angular.z componets");
-        return;
-      }
+      cmd_vel_message = msg;
+      cmd_vel_receive_time = now();
 
-      double theta_per_second = msg->angular.z;
-      double meters_per_second = msg->linear.x;
-      Angle theta_per_meter = Angle::radians( meters_per_second == 0.0 ? 0.0 : theta_per_second / meters_per_second );
-
-      car_msgs::msg::RcCommand rc_command_message;
-      rc_command_message.str_us = steering_for_curvature(theta_per_meter);
-
-      double v_error = 0;
-
-      if(speedometer_message) {
-        rclcpp::Time t2 = this->now();
-        rclcpp::Time t1(speedometer_message->header.stamp);
-        auto delta = t2-t1;
-        if(delta < rclcpp::Duration(0,300000000)) {
-          RCLCPP_INFO(this->get_logger(), "times align");
-        }
-        v_error = meters_per_second - speedometer_message->v_smooth;
-        // rc_command_message.esc_us = esc_for_velocity(meters_per_second + velocity_pid.k_p * v_error);
-        rc_command_message.esc_us = esc_for_velocity(meters_per_second);
-        rc_command_publisher_->publish(rc_command_message);
-      }
     }
 
     car_msgs::msg::Speedometer::SharedPtr speedometer_message;
@@ -300,6 +295,42 @@ void CarControllerNode::car_update_topic_callback(const car_msgs::msg::Update::S
     last_fr_ = fr;
     last_fl_ = fl;
     last_motor_ = motor;
+
+    if(cmd_vel_message && (now()-cmd_vel_receive_time) < 500ms ) {
+
+      double theta_per_second = cmd_vel_message->angular.z;
+      double meters_per_second = cmd_vel_message->linear.x;
+      Angle theta_per_meter = Angle::radians( meters_per_second == 0.0 ? 0.0 : theta_per_second / meters_per_second );
+      str_us_float = steering_for_curvature(theta_per_meter);
+
+      if(meters_per_second > 0 && esc_us_float < 1540) {
+        esc_us_float = 1540;
+      } else if (meters_per_second < 0 && esc_us_float > 1460) {
+        esc_us_float = 1460;
+      }
+
+      double velocity_k_p, velocity_k_a;
+      get_parameter("velocity_k_p", velocity_k_p);
+      get_parameter("velocity_k_a", velocity_k_a);
+      double v_error = meters_per_second - motor.v_smooth;
+      double a_error = -motor.a_smooth;
+      esc_us_float += velocity_k_p * v_error + velocity_k_a * a_error ;
+
+      // handle stopped case
+      if(fabs(meters_per_second)==0 && fabs(motor.v_smooth)<0.01) {
+        esc_us_float = 1500;
+        str_us_float = 1500;
+      }
+    } else {
+      esc_us_float = 1500; // idle
+      str_us_float = 1500; // idle
+    }
+
+    car_msgs::msg::RcCommand rc_command_message;
+    rc_command_message.str_us = str_us_float;
+    rc_command_message.esc_us = esc_us_float;
+    rc_command_publisher_->publish(rc_command_message);
+
 }
 
 
