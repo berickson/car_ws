@@ -4,8 +4,9 @@
             "name": "Linux",
             "includePath": [
                 "${workspaceFolder}/**",
-                "/opt/ros/humble/",
-                "${workspaceFolder}/src/install/car_msgs/share"
+                "/opt/ros/humble/include",
+                "${workspaceFolder}/src/install/car_msgs/share",
+                "/opt/ros/humble/include/geometry_msgs"
             ],
             "defines": [],
             "compilerPath": "/usr/bin/g++-11",

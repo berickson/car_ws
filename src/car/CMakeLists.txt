@@ -10,15 +10,22 @@ find_package(ament_cmake REQUIRED)
 
 find_package(rclcpp REQUIRED)
 find_package(std_msgs REQUIRED)
+find_package(geometry_msgs REQUIRED)
 find_package(sensor_msgs REQUIRED)
 find_package(car_msgs REQUIRED)
 find_package(tf2 REQUIRED)
 find_package(tf2_ros REQUIRED)
 
 # car_controller
-add_executable(car_controller src/car_controller.cpp)
+add_executable(
+  car_controller 
+  src/car_controller.cpp
+  src/geometry.cpp
+  src/lookup_table.cpp
+  src/pid.cpp
+)
 
-ament_target_dependencies(car_controller rclcpp std_msgs car_msgs)
+ament_target_dependencies(car_controller rclcpp geometry_msgs std_msgs car_msgs)
 
 # car_instruments
 add_executable(
