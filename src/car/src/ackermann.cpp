@@ -18,6 +18,12 @@ Ackermann::Ackermann(double front_wheelbase_width, double wheelbase_length, Poin
   y = position.y;
 }
 
+void Ackermann::reset(Point position, Angle _heading) {
+  heading = _heading;
+  x = position.x;
+  y = position.y;
+}
+
 Point Ackermann::front_left_position() const{
   Point p;
   p.x = x + l * cos(heading) - sin(heading) * w/2;

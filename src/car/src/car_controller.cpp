@@ -7,6 +7,7 @@
 
 #include "geometry_msgs/msg/twist.hpp"
 #include "geometry_msgs/msg/pose_stamped.hpp"
+#include "std_srvs/srv/empty.hpp"
 
 #include "car_msgs/msg/update.hpp"
 #include "car_msgs/msg/rc_command.hpp"
@@ -20,6 +21,7 @@
 
 
 using std::placeholders::_1;
+using std::placeholders::_2;
 
 
 int esc_for_velocity(double v) {
@@ -101,6 +103,9 @@ class CarControllerNode : public rclcpp::Node
       cmd_vel_subscription_ = this->create_subscription<geometry_msgs::msg::Twist>(
       "cmd_vel", 1, std::bind(&CarControllerNode::cmd_vel_topic_callback, this, _1));
 
+      reset_service_ = this->create_service<std_srvs::srv::Empty>("car/reset",std::bind(&CarControllerNode::reset_service_callback, this, _1, _2) );
+      
+
       velocity_pid.k_p = 1.0;
       velocity_pid.k_i = 0.0;
       velocity_pid.k_d = 10.0;
@@ -154,12 +159,23 @@ class CarControllerNode : public rclcpp::Node
 
     }
 
+    void reset_service_callback(
+        const std::shared_ptr<std_srvs::srv::Empty::Request> /*request*/,
+        std::shared_ptr<std_srvs::srv::Empty::Response>  /*response*/)
+    {
+      RCLCPP_INFO(this->get_logger(), "reset");
+      ackermann_.reset();
+    }
+
     car_msgs::msg::Speedometer::SharedPtr speedometer_message;
 
     rclcpp::Subscription<car_msgs::msg::Update>::SharedPtr car_update_subscription_;
     rclcpp::Subscription<car_msgs::msg::Speedometer>::SharedPtr motor_speedometer_subscription_;
     rclcpp::Subscription<geometry_msgs::msg::Twist>::SharedPtr cmd_vel_subscription_;
+
     rclcpp::Publisher<car_msgs::msg::RcCommand>::SharedPtr rc_command_publisher_;
+
+    rclcpp::Service<std_srvs::srv::Empty>::SharedPtr reset_service_;
 };
 
 int CarControllerNode::steering_for_curvature(Angle theta_per_meter) const {
