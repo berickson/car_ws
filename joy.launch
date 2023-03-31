@@ -1,0 +1,22 @@
+<?xml version="1.0"?>
+<launch>
+  <node pkg="joy" exec="joy_node" >
+    <!--<param name="dev" type="string" value="/dev/ps3-joystick" />-->
+    <!-- <param name="dev" value="/dev/input/js0" /> -->
+    <param name="deadzone" value="0.012" />
+    <param name="autorepeat_rate" value = "5.0" />
+  </node>
+  <node pkg="teleop_twist_joy" exec="teleop_node" name="teleop_node">
+    <param name="require_enable_button" value="false"/>
+    <param name="joy_config" value="xbox" />
+    <param name="axis_linear.x" value="1" />
+    <param name="axis_angular.yaw" value="0" />
+    <param name="enable_button" value="0" />
+    <param name="scale_linear.x" value="1.0" />
+    <param name="scale_angular.yaw" value="1.57" />
+
+    <param name="enable_turbo_button" value="1" />
+    <param name="scale_linear_turbo.x" value = "2.0" />
+    <param name="scale_angular_turbo.yaw" value = "6.28" />
+  </node>
+</launch>

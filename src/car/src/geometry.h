@@ -27,6 +27,8 @@ struct Angle {
 
   static Angle radians(double rad);
 
+  void reset(Point point, Angle angle);
+
   double radians() const;
   double degrees() const;
   void set_degrees(double d);
