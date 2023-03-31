@@ -43,7 +43,7 @@ int esc_for_velocity(double v) {
   return t.lookup(v);
 }
 
-class CarControllerNode : public rclcpp::Node
+class Car : public rclcpp::Node
 {
   public:
 
@@ -54,8 +54,8 @@ class CarControllerNode : public rclcpp::Node
     Speedometer front_left_wheel_;
     Speedometer motor_;
 
-    CarControllerNode()
-    : Node("car_controller")
+    Car()
+    : Node("car")
     {
 
       {
@@ -98,12 +98,12 @@ class CarControllerNode : public rclcpp::Node
       rc_command_publisher_ = this->create_publisher<car_msgs::msg::RcCommand>("car/rc_command", 1);
 
       car_update_subscription_ = this->create_subscription<car_msgs::msg::Update>(
-      "car/update", rclcpp::SensorDataQoS(), std::bind(&CarControllerNode::car_update_topic_callback, this, _1));
+      "car/update", rclcpp::SensorDataQoS(), std::bind(&Car::car_update_topic_callback, this, _1));
 
       cmd_vel_subscription_ = this->create_subscription<geometry_msgs::msg::Twist>(
-      "cmd_vel", 1, std::bind(&CarControllerNode::cmd_vel_topic_callback, this, _1));
+      "cmd_vel", 1, std::bind(&Car::cmd_vel_topic_callback, this, _1));
 
-      reset_service_ = this->create_service<std_srvs::srv::Empty>("car/reset",std::bind(&CarControllerNode::reset_service_callback, this, _1, _2) );
+      reset_service_ = this->create_service<std_srvs::srv::Empty>("car/reset",std::bind(&Car::reset_service_callback, this, _1, _2) );
       
 
       velocity_pid.k_p = 1.0;
@@ -178,7 +178,7 @@ class CarControllerNode : public rclcpp::Node
     rclcpp::Service<std_srvs::srv::Empty>::SharedPtr reset_service_;
 };
 
-int CarControllerNode::steering_for_curvature(Angle theta_per_meter) const {
+int Car::steering_for_curvature(Angle theta_per_meter) const {
   static const LookupTable t({{-85.1, 1929},
                               {-71.9, 1839},
                               {-58.2, 1794},
@@ -197,7 +197,7 @@ int CarControllerNode::steering_for_curvature(Angle theta_per_meter) const {
   return (int)t.lookup(theta_per_meter.degrees());
 }
 
-int CarControllerNode::steering_for_angle(Angle theta) {
+int Car::steering_for_angle(Angle theta) {
   static const LookupTable t({{-30, 1929},
                               {-25, 1839},
                               {-20, 1794},
@@ -216,7 +216,7 @@ int CarControllerNode::steering_for_angle(Angle theta) {
   return (int)t.lookup(theta.degrees());
 }
 
-Angle CarControllerNode::angle_for_steering(int str) {
+Angle Car::angle_for_steering(int str) {
   static const LookupTable t({{1071, 30},
                               {1175, 25},
                               {1260, 20},
@@ -234,7 +234,7 @@ Angle CarControllerNode::angle_for_steering(int str) {
   return Angle::degrees(t.lookup(str));
 }
 
-void CarControllerNode::car_update_topic_callback(const car_msgs::msg::Update::SharedPtr d){
+void Car::car_update_topic_callback(const car_msgs::msg::Update::SharedPtr d){
     RCLCPP_INFO_ONCE(this->get_logger(), "Running and receiving car update messages");
 
     ++update_count_;
@@ -354,7 +354,7 @@ void CarControllerNode::car_update_topic_callback(const car_msgs::msg::Update::S
 int main(int argc, char * argv[])
 {
   rclcpp::init(argc, argv);
-  rclcpp::spin(std::make_shared<CarControllerNode>());
+  rclcpp::spin(std::make_shared<Car>());
   rclcpp::shutdown();
   return 0;
 }
