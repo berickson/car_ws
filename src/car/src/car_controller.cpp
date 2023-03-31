@@ -297,7 +297,8 @@ void CarControllerNode::car_update_topic_callback(const car_msgs::msg::Update::S
 
     // tf_msg.header.stamp = d->header.stamp;
     tf_msg.header.frame_id = "odom";
-    tf_msg.child_frame_id = "base_link";
+    tf_msg.child_frame_id = "base_footprint";
+    tf_msg.header.stamp = d->header.stamp;
     tf_msg.transform.translation.x = rear_position.x;
     tf_msg.transform.translation.y = rear_position.y;
     tf_msg.transform.translation.z = 0.0;
