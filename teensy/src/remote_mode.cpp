@@ -48,7 +48,7 @@ void RemoteMode::command_steer_and_esc(float _str_us, float _esc_us) {
   // of no recent commands, will set throttle to neutral
   bool timed_out = (millis() - last_command_ms > timeout_ms);
 
-  str_us = str_us;
+  str_us = _str_us;
   esc_us = timed_out ? 1500 :_esc_us;
   update_pulses();
 }
