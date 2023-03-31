@@ -420,13 +420,13 @@ bool create_uros_entities()
     &enable_rc_mode_service, 
     &node,
     empty_type_support, 
-    "/enable_rc_mode");
+    "/car/enable_ros_control");
 
   rclc_service_init_default(
     &disable_rc_mode_service, 
     &node,
     empty_type_support, 
-    "/disable_rc_mode");
+    "/car/disable_ros_control");
   
 
   // create executor

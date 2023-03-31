@@ -34,10 +34,6 @@ void RemoteMode::end() {
 }
 
 void RemoteMode::execute() {
-  // abort on timeout
-  if(millis() - last_command_ms > timeout_ms) {
-    end();
-  }
 }
 
 void RemoteMode::command_steer_and_esc(float _str_us, float _esc_us) {
@@ -45,9 +41,15 @@ void RemoteMode::command_steer_and_esc(float _str_us, float _esc_us) {
     Serial.println("RemoteMode::command_steer_and_esc called when mode inactive, ignoring");
     return;
   }
+
+
   last_command_ms = millis();
-  str_us = _str_us;
-  esc_us = _esc_us;
+
+  // of no recent commands, will set throttle to neutral
+  bool timed_out = (millis() - last_command_ms > timeout_ms);
+
+  str_us = str_us;
+  esc_us = timed_out ? 1500 :_esc_us;
   update_pulses();
 }
 
