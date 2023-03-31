@@ -17,11 +17,11 @@ find_package(car_msgs REQUIRED)
 find_package(tf2 REQUIRED)
 find_package(tf2_ros REQUIRED)
 
-# car_controller
+# car
 add_executable(
-  car_controller 
+  car 
   src/ackermann.cpp
-  src/car_controller.cpp
+  src/car.cpp
   src/geometry.cpp
   src/kalman.cpp
   src/logger.cpp
@@ -32,7 +32,7 @@ add_executable(
 
 )
 
-ament_target_dependencies(car_controller rclcpp geometry_msgs std_msgs std_srvs car_msgs tf2 tf2_ros)
+ament_target_dependencies(car rclcpp geometry_msgs std_msgs std_srvs car_msgs tf2 tf2_ros)
 
 if(BUILD_TESTING)
   find_package(ament_lint_auto REQUIRED)
@@ -47,7 +47,7 @@ if(BUILD_TESTING)
 endif()
 
 install(TARGETS
-  car_controller
+  car
   DESTINATION lib/${PROJECT_NAME})
 
 ament_package()
