@@ -25,6 +25,9 @@ public:
   double v_a = 0.0;
   double v_b = 0.0;
 
+  double zero_a_tolerance = 1E-4;
+  double zero_v_tolerance = 1E-4;
+
   int get_ticks() const;
   double get_velocity() const;
   double get_smooth_velocity() const;

@@ -272,6 +272,9 @@ void Car::car_update_topic_callback(const car_msgs::msg::Update::SharedPtr d){
                                     yaw);
         } 
     }
+
+    // you can detect whether the Traxxas power switch is on by looking at rx signals
+    bool powertrain_on = (d->rx_esc > 0 && d->rx_str > 0) && d->go;
     
     geometry_msgs::msg::PoseStamped pose_msg;
 
@@ -313,7 +316,7 @@ void Car::car_update_topic_callback(const car_msgs::msg::Update::SharedPtr d){
     last_fl_ = fl;
     last_motor_ = motor;
 
-    if(cmd_vel_message && (now()-cmd_vel_receive_time) < 500ms ) {
+    if(powertrain_on && cmd_vel_message && (now()-cmd_vel_receive_time) < 500ms ) {
 
       double theta_per_second = cmd_vel_message->angular.z;
       double meters_per_second = cmd_vel_message->linear.x;
