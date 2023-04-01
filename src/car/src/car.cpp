@@ -274,7 +274,7 @@ void Car::car_update_topic_callback(const car_msgs::msg::Update::SharedPtr d){
     }
 
     // you can detect whether the Traxxas power switch is on by looking at rx signals
-    bool powertrain_on = (d->rx_esc > 0 && d->rx_str > 0);
+    bool powertrain_on = (d->rx_esc > 0 && d->rx_str > 0) && d->go;
     
     geometry_msgs::msg::PoseStamped pose_msg;
 
