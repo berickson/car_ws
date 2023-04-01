@@ -18,11 +18,11 @@ double Speedometer::get_velocity() const {
 }
 
 double Speedometer::get_smooth_velocity() const {
-  return kalman_v.mean;
+  return fabs(kalman_v.mean) > zero_v_tolerance ? kalman_v.mean : 0.0;
 }
 
 double Speedometer::get_smooth_acceleration() const {
-  return kalman_a.mean;
+  return fabs(kalman_a.mean) > zero_a_tolerance ? kalman_a.mean : 0.0;
 }
 
 double Speedometer::get_meters_travelled() const {
