@@ -161,7 +161,7 @@
       <div ng-class='car.online?"":"error-background"'>{{car.online ? "online": "offline"}}</div>
     </div>
     <div class='itembox'>
-      <div ng-class='car.car_state.go_enabled?"":"error-background"'>{{car.car_state.go_enabled ? "go enabled" : "go
+      <div ng-class='car.car_state.go_enabled?"":"error-background"'>{{car.car_state.go ? "go enabled" : "go
         disabled"}}</div>
     </div>
 
@@ -259,6 +259,8 @@
             <button class='button' ng-click="car.reset_odometer()">Reset</button>
             <button class='button' ng-click="car.stop_motor()">Stop Motor</button>
             <button class='button' ng-click="car.start_motor()">Start Motor</button>
+            <button class='button' ng-click="car.enable_ros_control()">Enable ROS Control</button>
+            <button class='button' ng-click="car.disable_ros_control()">Disable ROS Control</button>
           </div>
           <div class='itembox'>
           <table>

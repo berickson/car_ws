@@ -228,6 +228,36 @@ angular.module("car",[]).controller("CarController", function($scope, $http, $ti
     });
   };
 
+  var enable_ros_control_service = new ROSLIB.Service({
+    ros : ros,
+    name : '/car/enable_ros_control',
+    serviceType : 'std_srvs/Empty'
+  });
+
+  var disable_ros_control_service = new ROSLIB.Service({
+    ros : ros,
+    name : '/car/disable_ros_control',
+    serviceType : 'std_srvs/Empty'
+  });
+
+  vm.enable_ros_control = function () {
+    var request = new ROSLIB.ServiceRequest({
+    });
+  
+    enable_ros_control_service.callService(request, function(result) {
+      console.log("enable_ros_control completed");
+    });
+  };
+
+  vm.disable_ros_control = function () {
+    var request = new ROSLIB.ServiceRequest({
+    });
+  
+    disable_ros_control_service.callService(request, function(result) {
+      console.log("disable_ros_control completed");
+    });
+  };
+
 
 
   vm.reset_zoom = function () {
