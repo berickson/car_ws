@@ -298,10 +298,9 @@ void Car::car_update_topic_callback(const car_msgs::msg::Update::SharedPtr d){
 
     geometry_msgs::msg::TransformStamped tf_msg;
 
-    // tf_msg.header.stamp = d->header.stamp;
     tf_msg.header.frame_id = "odom";
     tf_msg.child_frame_id = "base_footprint";
-    tf_msg.header.stamp = d->header.stamp;
+    tf_msg.header.stamp = now();
     tf_msg.transform.translation.x = rear_position.x;
     tf_msg.transform.translation.y = rear_position.y;
     tf_msg.transform.translation.z = 0.0;
@@ -311,6 +310,9 @@ void Car::car_update_topic_callback(const car_msgs::msg::Update::SharedPtr d){
     tf_msg.transform.rotation.w = q.w();
 
     tf_broadcaster_->sendTransform(tf_msg);
+
+    // send static transforms
+    
 
     last_fr_ = fr;
     last_fl_ = fl;
