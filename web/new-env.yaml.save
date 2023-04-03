@@ -1,0 +1,27 @@
+name: car
+dependencies:
+- ca-certificates
+- certifi
+- click
+- flask
+- itsdangerous
+- jinja2
+- libgfortran
+- markupsafe
+- ncurses
+- numpy
+- openblas- openssl=1.0.2r=hdff2a78_0
+- pandas=0.23.4=py35h6b76cdf_0
+- pip=18.0=py35_1
+- python=3.5.6=hd0568c0_0
+- python-dateutil=2.6.1=py_0
+- pytz=2018.5=py_0
+- readline=7.0=hcb560eb_1
+- setuptools=40.2.0=py35_0
+- six=1.11.0=py35_1
+- sqlite=3.24.0=hfcb1bcf_1
+- tk=8.6.8=h849d6a0_0
+- werkzeug=0.14.1=py_0
+- wheel=0.31.1=py35_1
+- xz=5.2.4=hdff2a78_1
+- zlib=1.2.11=hdff2a78_1003

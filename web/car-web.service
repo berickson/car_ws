@@ -1,0 +1,18 @@
+[Unit]
+Description=Car Web Service
+ 
+[Service]
+User=pi
+WorkingDirectory=/home/pi/car/web
+
+# todo: change back to anaconda
+#ExecStart=-/usr/bin/python web_server.py
+#ExecStart=-/home/pi/miniconda3/bin/python web_server.py
+ExecStart=/home/pi/miniconda3/envs/car/bin/python web_server.py
+EnvironmentFile=/etc/environment
+StandardOutput=journal
+ 
+[Install]
+WantedBy=multi-user.target
+Alias=car-web.service
+

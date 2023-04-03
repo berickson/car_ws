@@ -1,0 +1,5 @@
+ame: car
+channels:
+  - defaults
+prefix: /home/pi/miniconda3/envs/car/
+
