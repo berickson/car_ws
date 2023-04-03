@@ -48,10 +48,9 @@ def generate_launch_description():
 
 
 
-    ld.add_action(node_tf_base_footprint_to_base_link)
-    ld.add_action(node_tf_based_link_to_laser_scanner_link)
-    ld.add_action(node_tf_base_link_to_chassis_link)
-    node_tf_base_link_to_chassis_link
+    #ld.add_action(node_tf_base_footprint_to_base_link)
+    #ld.add_action(node_tf_based_link_to_laser_scanner_link)
+    #ld.add_action(node_tf_base_link_to_chassis_link)
     ld.add_action(car)
     ld.add_action(foxglove_bridge)
     #ld.add_action(web_bridge)
