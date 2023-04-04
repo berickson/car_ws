@@ -19,6 +19,13 @@ def generate_launch_description():
     angle_compensate = LaunchConfiguration('angle_compensate', default='true')
     scan_mode = LaunchConfiguration('scan_mode', default='Sensitivity')
 
+# see http://bucket.download.slamtec.com/cd82fe93553fea5d15237cb3d6a45a406ef641aa/LR001_SLAMTEC_rplidar_protocol_v2.0_en.pdf
+# Standard: max_distance: 25.0 m, Point number: 4.0K
+# Express: max_distance: 25.0 m, Point number: 7.9K
+# Boost: max_distance: 25.0 m, Point number: 15.9K
+# Sensitivity: max_distance: 25.0 m, Point number: 15.9K
+# Stability: max_distance: 25.0 m, Point number: 10.0K
+
     return LaunchDescription([
 
         DeclareLaunchArgument(
@@ -67,6 +74,8 @@ def generate_launch_description():
                          'inverted': inverted, 
                          'angle_compensate': angle_compensate, 
                          'scan_mode': scan_mode}],
+            remappings=[('start_motor', 'car/start_scan'),
+                        ('stop_motor', 'car/stop_scan')],
             output='screen'),
     ])
 
