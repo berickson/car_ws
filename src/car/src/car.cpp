@@ -318,16 +318,19 @@ void Car::car_update_topic_callback(const car_msgs::msg::Update::SharedPtr d){
     {
       geometry_msgs::msg::TransformStamped tf_msg;
 
+      tf2::Quaternion q;
+      q.setRPY(roll.radians(), -pitch.radians(), 0);
+
       tf_msg.header.frame_id = "base_footprint";
       tf_msg.child_frame_id = "base_link";
       tf_msg.header.stamp = d->header.stamp;
       tf_msg.transform.translation.x = 0.0;
       tf_msg.transform.translation.y = 0.0;
       tf_msg.transform.translation.z = 0.0;
-      tf_msg.transform.rotation.x = 0.0;
-      tf_msg.transform.rotation.y = 0.0;
-      tf_msg.transform.rotation.z = 0.0;
-      tf_msg.transform.rotation.w = 1.0;
+      tf_msg.transform.rotation.x = q.x();
+      tf_msg.transform.rotation.y = q.y();
+      tf_msg.transform.rotation.z = q.z();
+      tf_msg.transform.rotation.w = q.w();
       tf_broadcaster_->sendTransform(tf_msg);
     }
 

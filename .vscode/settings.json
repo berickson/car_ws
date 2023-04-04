@@ -83,5 +83,6 @@
         "hash_map": "cpp",
         "hash_set": "cpp",
         "valarray": "cpp"
-    }
+    },
+    "cmake.sourceDirectory": "${workspaceFolder}/src/car"
 }
