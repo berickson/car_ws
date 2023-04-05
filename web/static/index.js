@@ -199,7 +199,7 @@ angular.module("car",[]).controller("CarController", function($scope, $http, $ti
 
   var start_motor_service = new ROSLIB.Service({
     ros : ros,
-    name : '/start_motor',
+    name : '/car/start_scan',
     serviceType : 'std_srvs/Empty'
   });
 
@@ -214,7 +214,7 @@ angular.module("car",[]).controller("CarController", function($scope, $http, $ti
 
   var stop_motor_service = new ROSLIB.Service({
     ros : ros,
-    name : '/stop_motor',
+    name : '/car/stop_scan',
     serviceType : 'std_srvs/Empty'
   });
 
@@ -498,7 +498,7 @@ angular.module("car",[]).controller("CarController", function($scope, $http, $ti
 
   var tf_client = new ROSLIB.TFClient({
     ros : ros,
-    fixedFrame : "map",
+    fixedFrame : "odom",
     rate: 100,
     angularThres : 0.00001,
      transThres : 0.00001
@@ -506,7 +506,7 @@ angular.module("car",[]).controller("CarController", function($scope, $http, $ti
 
   vm.tf_count = 0;
 
-  tf_client.subscribe('base_link', function(msg) {
+  tf_client.subscribe('base_footprint', function(msg) {
     ++vm.tf_count;
     vm.base_link = msg;
 

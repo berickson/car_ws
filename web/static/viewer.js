@@ -276,7 +276,7 @@ let viewer = (function () {
             new THREE.MeshLambertMaterial({ color: 0x00ff00 }));
         lidar_template.position.z = -0.35/2;
         lidar_elements = [];
-        for (let i = 0; i < 1440; i++) { // todo: get this number from the scans
+        for (let i = 0; i < 1800; i++) { // todo: get this number from the scans
             let lidar_element = lidar_template.clone();
             lidar_element.visible = false;
             lidar_elements.push(lidar_element);
