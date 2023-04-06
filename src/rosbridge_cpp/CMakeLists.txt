@@ -7,11 +7,33 @@ endif()
 
 # find dependencies
 find_package(ament_cmake REQUIRED)
-# uncomment the following section in order to fill in
-# further dependencies manually.
-# find_package(<dependency> REQUIRED)
+find_package(rclcpp REQUIRED)
+find_package(std_msgs REQUIRED)
 
-add_executable(rosbridge_cpp src/rosbridge_cpp.cpp)
+find_package(rcpputils REQUIRED)
+find_package(rmw_fastrtps_cpp REQUIRED)
+find_package(sensor_msgs REQUIRED)
+find_package(geometry_msgs REQUIRED)
+find_package(rosbag2_cpp REQUIRED)
+
+
+add_executable(
+  rosbridge_cpp 
+  src/rosbridge_cpp.cpp
+  src/ros2_introspection.cpp
+  src/stringtree.cpp
+)
+
+
+ament_target_dependencies(
+  rosbridge_cpp
+  rclcpp
+  std_msgs
+  sensor_msgs
+  rmw_fastrtps_cpp
+  rosbag2_cpp
+)
+
 target_include_directories(rosbridge_cpp PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
   $<INSTALL_INTERFACE:include>)

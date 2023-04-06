@@ -53,6 +53,6 @@ def generate_launch_description():
     #ld.add_action(node_tf_base_link_to_chassis_link)
     ld.add_action(car)
     ld.add_action(foxglove_bridge)
-    #ld.add_action(web_bridge)
+    ld.add_action(web_bridge)
 
     return ld
