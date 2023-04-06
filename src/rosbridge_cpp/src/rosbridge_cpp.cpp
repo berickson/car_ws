@@ -33,6 +33,8 @@ class RosbridgeCppNode : public rclcpp::Node
 
 //      RCLCPP_INFO(this->get_logger(), "Got callback!");
 
+      std::string message_identifier = "car/update";
+      std::string message_type = "car_msgs/msg/Update";
 
 
       // register **once** your type
@@ -42,25 +44,31 @@ class RosbridgeCppNode : public rclcpp::Node
       
       static bool first_time = true;
       if(first_time) {
-        parser_.registerMessageType("car/update", "car_msgs/msg/Update");
+        parser_.registerMessageType(message_identifier, message_type);
       }
-      parser_.deserializeIntoFlatMessage("car/update", &serialized_msg->get_rcl_serialized_message(), &flat_msg, max_array_size);  
-      // serialized_msg->release_rcl_serialized_message();
+      // parser_.deserializeIntoFlatMessage(message_identifier, &serialized_msg->get_rcl_serialized_message(), &flat_msg, max_array_size);  
+      // // serialized_msg->release_rcl_serialized_message();
 
-      std::stringstream ss;
+      
+
+      // std::stringstream ss;
         
-      // you can show the entire content of the message as a list of key-values
-      for(const auto& pair: flat_msg.values)
-      {
-        ss << pair.first.toStdString() << " = " << pair.second << std::endl;
-      }
-      for(const auto& pair: flat_msg.strings)
-      {
-        ss << pair.first.toStdString() << " = " << pair.second << std::endl;
-      }
-      std::cout << ss.str() << std::endl;
+      // // you can show the entire content of the message as a list of key-values
+      // for(const auto& pair: flat_msg.values)
+      // {
+      //   ss << pair.first.toStdString() << " = " << pair.second << std::endl;
+      // }
+      // for(const auto& pair: flat_msg.strings)
+      // {
+      //   ss << pair.first.toStdString() << " = " << pair.second << std::endl;
+      // }
+      // std::cout << ss.str() << std::endl;
 
       // RCLCPP_INFO(this->get_logger(), "Generic Message: \n'%s'", ss.str().c_str());
+
+      std::stringstream ss_json;
+      parser_.stream_json(message_identifier, ss_json, &serialized_msg->get_rcl_serialized_message());
+      std::cout << "JSON: " << ss_json.str() << std::endl;
       
 
       

@@ -102,6 +102,135 @@ bool TypeHasHeader(const rosidl_message_type_support_t* type_support)
     return false;
 }
 
+
+
+void stream_json(
+  std::ostream & stream, 
+  eprosima::fastcdr::Cdr &cdr, 
+  const rosidl_message_type_support_t* type_data,
+  StringTreeLeaf& tree_leaf)
+  {
+    bool pretty = true;
+
+    stream << "{";
+
+    using namespace rosidl_typesupport_introspection_cpp;
+    const auto* members = static_cast<const MessageMembers*>(type_data->data);
+
+    for(size_t index = 0; index < members->member_count_; index++)
+    {
+      if(index > 0) {
+        stream << ",";
+        if(pretty) {
+          stream << std::endl;
+        }
+      }
+      const MessageMember& member = members->members_[index];
+      stream << "\""<< member.name_ << "\": ";
+
+      auto new_tree_leaf = tree_leaf;
+      new_tree_leaf.node_ptr = tree_leaf.node_ptr->child(index);
+
+      size_t array_size = 1;
+
+      if(member.is_array_)
+      {
+        if( member.array_size_ == 0)
+        {
+          array_size = size_t(CastFromBuffer<uint32_t>(cdr));
+        }
+        else{
+          array_size = member.array_size_;
+        }
+      }
+
+      bool skip_save = false;
+      if(array_size > 9999999 &&
+          (member.type_id_ == ROS_TYPE_INT8 || member.type_id_ == ROS_TYPE_UINT8))
+      {
+        if( !skip_save ){
+          BufferView blob(cdr.getCurrentPosition(), array_size);
+          // flat_container->blobs.push_back( {new_tree_leaf, std::move(blob)} );
+          stream << " blob";
+        }
+        cdr.jump(array_size);
+
+        continue;
+      }
+
+      if( member.is_array_ )
+      {
+        new_tree_leaf.index_array.push_back(0);
+        new_tree_leaf.node_ptr = new_tree_leaf.node_ptr->child(0);
+      }
+
+      for (size_t a=0; a < array_size; a++)
+      {
+        if( member.is_array_ )
+        {
+          new_tree_leaf.index_array.back() = a;
+        }
+
+        if(member.type_id_ != ROS_TYPE_MESSAGE && member.type_id_ != ROS_TYPE_STRING)
+        {
+          double value = 0;
+          switch( member.type_id_)
+          {
+            case ROS_TYPE_FLOAT:   value = double(CastFromBuffer<float>(cdr)); break;
+            case ROS_TYPE_DOUBLE:  value = double(CastFromBuffer<double>(cdr)); break;
+
+            case ROS_TYPE_INT64:   value = double(CastFromBuffer<int64_t>(cdr)); break;
+            case ROS_TYPE_INT32:   value = double(CastFromBuffer<int32_t>(cdr)); break;
+            case ROS_TYPE_INT16:   value = double(CastFromBuffer<int16_t>(cdr)); break;
+            case ROS_TYPE_INT8:    value = double(CastFromBuffer<int8_t>(cdr)); break;
+
+            case ROS_TYPE_UINT64:  value = double(CastFromBuffer<uint64_t>(cdr)); break;
+            case ROS_TYPE_UINT32:  value = double(CastFromBuffer<uint32_t>(cdr)); break;
+            case ROS_TYPE_UINT16:  value = double(CastFromBuffer<uint16_t>(cdr)); break;
+            case ROS_TYPE_UINT8:   value = double(CastFromBuffer<uint8_t>(cdr)); break;
+
+            case ROS_TYPE_BOOLEAN: value = double(CastFromBuffer<bool>(cdr)); break;
+          }
+          stream << value;
+        }
+        else if(member.type_id_ == ROS_TYPE_STRING)
+        {
+          std::string str;
+          cdr.deserialize( str );
+          stream << "\"" << str << "\"";
+          // flat_container->strings.push_back( {new_tree_leaf, std::move(str)} );
+        }
+        else if(member.type_id_ == ROS_TYPE_MESSAGE)
+        {
+          Ros2Introspection::stream_json(stream, cdr, member.members_, new_tree_leaf);
+        }
+      } // end for array
+    } // end for members
+    stream << "}";
+  };
+
+void Parser::stream_json(const std::string & msg_identifier, std::ostream & stream, const rcutils_uint8_array_t *msg) const
+{
+  const auto message_info_it = _registered_messages.find(msg_identifier);
+  if(message_info_it == _registered_messages.end())
+  {
+    throw std::runtime_error("Message identifier not registered");
+  }
+
+  // get cdr reader from buffer
+  eprosima::fastcdr::FastBuffer buffer( reinterpret_cast<char*>(msg->buffer), msg->buffer_length);
+  eprosima::fastcdr::Cdr cdr(buffer, eprosima::fastcdr::Cdr::DEFAULT_ENDIAN,
+                             eprosima::fastcdr::Cdr::DDS_CDR);
+  cdr.read_encapsulation();
+
+  auto& message_info = message_info_it->second;
+  StringTreeLeaf rootnode;
+  rootnode.node_ptr = message_info.field_tree.root();  
+
+  Ros2Introspection::stream_json(stream, cdr, message_info.type_support, rootnode);
+}
+
+
 bool Parser::deserializeIntoFlatMessage(
   const std::string &msg_identifier,
   const rcutils_uint8_array_t* msg,

@@ -128,6 +128,7 @@ public:
                                   FlatMessage* flat_container_output,
                                   const uint32_t max_array_size ) const;
 
+  void stream_json(const std::string& msg_identifier, std::ostream & stream, const rcutils_uint8_array_t *msg) const;
 
   const rosidl_message_type_support_t* getIntrospectionSupport(const std::string& msg_identifier)
   {
