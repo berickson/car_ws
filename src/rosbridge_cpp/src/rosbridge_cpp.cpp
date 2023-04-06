@@ -37,9 +37,9 @@ class RosbridgeCppNode : public rclcpp::Node
 
       // register **once** your type
 
-      Ros2Introspection::FlatMessage flat_msg;
+      static Ros2Introspection::FlatMessage flat_msg;
       unsigned max_array_size = 100;
-      static Ros2Introspection::Parser parser_;
+      
       static bool first_time = true;
       if(first_time) {
         parser_.registerMessageType("car/update", "car_msgs/msg/Update");
@@ -74,6 +74,7 @@ class RosbridgeCppNode : public rclcpp::Node
       publisher_->publish(message);
     }
     rclcpp::TimerBase::SharedPtr timer_;
+    Ros2Introspection::Parser parser_;    
     std::shared_ptr<rclcpp::GenericSubscription> generic_subscription_;
     rclcpp::Publisher<std_msgs::msg::String>::SharedPtr publisher_;
     size_t count_;
