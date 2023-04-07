@@ -39,6 +39,7 @@ class RosbridgeCppNode : public rclcpp::Node
       static bool first_time = true;
       if(first_time) {
         json_encoder_.set_message_type(message_type);
+        first_time = false;
       }
 
       std::stringstream ss_json;
