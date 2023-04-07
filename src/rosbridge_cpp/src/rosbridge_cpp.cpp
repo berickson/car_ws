@@ -5,7 +5,7 @@
 
 #include "rclcpp/rclcpp.hpp"
 #include "std_msgs/msg/string.hpp"
-#include "ros2_introspection.hpp"
+#include "json_encoder.hpp"
 
 using namespace std::chrono_literals;
 using std::placeholders::_1;
@@ -35,13 +35,14 @@ class RosbridgeCppNode : public rclcpp::Node
       std::string message_identifier = "car/update";
       std::string message_type = "car_msgs/msg/Update";
 
+
       static bool first_time = true;
       if(first_time) {
-        parser_.registerMessageType(message_identifier, message_type);
+        json_encoder_.set_message_type(message_type);
       }
 
       std::stringstream ss_json;
-      parser_.stream_json(message_identifier, ss_json, &serialized_msg->get_rcl_serialized_message());
+      json_encoder_.stream_json(ss_json, &serialized_msg->get_rcl_serialized_message());
       std::cout << "JSON: " << ss_json.str() << std::endl;
     }
 
@@ -52,7 +53,7 @@ class RosbridgeCppNode : public rclcpp::Node
       publisher_->publish(message);
     }
     rclcpp::TimerBase::SharedPtr timer_;
-    Parser parser_;    
+    JsonEncoder json_encoder_;    
     std::shared_ptr<rclcpp::GenericSubscription> generic_subscription_;
     rclcpp::Publisher<std_msgs::msg::String>::SharedPtr publisher_;
     size_t count_;

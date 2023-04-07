@@ -20,8 +20,7 @@ find_package(rosbag2_cpp REQUIRED)
 add_executable(
   rosbridge_cpp 
   src/rosbridge_cpp.cpp
-  src/ros2_introspection.cpp
-  src/stringtree.cpp
+  src/json_encoder.cpp
 )
 
 
