@@ -7,6 +7,13 @@
 #include "std_msgs/msg/string.hpp"
 #include "json_encoder.hpp"
 
+
+#include "Simple-WebSocket-Server/server_ws.hpp"
+#include <future>
+
+#include "nlohmann/json.hpp"
+
+using WsServer = SimpleWeb::SocketServer<SimpleWeb::WS>;
 using namespace std::chrono_literals;
 using std::placeholders::_1;
 
@@ -75,6 +82,40 @@ int main(int argc, char * argv[])
 {
   rclcpp::init(argc, argv);
 
+  // make socket server
+  
+  WsServer server;
+  server.config.port = 9090; // this seems to be the default port
+
+  // configure endpoints
+  auto &ws_endpoint = server.endpoint["^.*$"];
+  ws_endpoint.on_message = [](std::shared_ptr<WsServer::Connection> connection, std::shared_ptr<WsServer::InMessage> in_message) {
+    try {
+      std::cout << "got message: " << in_message->string().c_str() << std::endl;
+      auto json = nlohmann::json::parse(in_message->string());
+      std::cout << "op: " << json["op"].get<std::string>() << std::endl;
+    } catch (...) {
+      std::cout << "Exception caught in websocket handler" << std::endl;
+    }
+    // auto out_message = make_shared<string>(in_message->string());
+
+    // connection->send(*out_message, [connection, out_message](const SimpleWeb::error_code &ec) {
+    //   if(!ec)
+    //     connection->send(*out_message); // Sent after the first send operation is finished
+    // });
+    // connection->send(*out_message); // Most likely queued. Sent after the first send operation is finished.
+  };
+
+  // Start server and receive assigned port when server is listening for requests
+  std::promise<unsigned short> server_port;
+  std::thread server_thread([&server, &server_port]() {
+    // Start server
+    server.start([&server_port](unsigned short port) {
+      server_port.set_value(port);
+    });
+  });
+  std::cout << "Server listening on port " << server_port.get_future().get() << std::endl
+       << std::endl;
 
   rclcpp::spin(std::make_shared<RosbridgeCppNode>());
   rclcpp::shutdown();

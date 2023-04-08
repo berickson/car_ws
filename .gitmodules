@@ -1,0 +1,3 @@
+[submodule "src/rosbridge_cpp/include/Simple-WebSocket-Server"]
+	path = src/rosbridge_cpp/include/Simple-WebSocket-Server
+	url = https://gitlab.com/eidheim/Simple-WebSocket-Server.git
