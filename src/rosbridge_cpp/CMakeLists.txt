@@ -15,6 +15,7 @@ find_package(rmw_fastrtps_cpp REQUIRED)
 find_package(sensor_msgs REQUIRED)
 find_package(geometry_msgs REQUIRED)
 find_package(rosbag2_cpp REQUIRED)
+find_package(topic_tools REQUIRED)
 
 
 add_executable(
@@ -31,6 +32,7 @@ ament_target_dependencies(
   sensor_msgs
   rmw_fastrtps_cpp
   rosbag2_cpp
+  topic_tools
 )
 
 target_include_directories(rosbridge_cpp PUBLIC
