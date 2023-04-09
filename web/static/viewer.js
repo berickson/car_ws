@@ -298,7 +298,7 @@ let viewer = (function () {
             ros : ros,
             name : "/scan",
             messageType: "sensor_msgs/LaserScan",
-            throttle_rate : 200,
+            throttle_rate : 100,
             queue_length : 1
             //,
             // messageType : 'std_msgs/String'

@@ -545,7 +545,7 @@ angular.module("car",[]).controller("CarController", function($scope, $http, $ti
     ros : ros,
     name : '/car/speedometers/fl',
     queue_length : 1,
-    throttle_rate: 500
+    throttle_rate: 100
     // messageType : 'std_msgs/String'
   }).subscribe(function(message) {
     vm.speedometers.fl = message;

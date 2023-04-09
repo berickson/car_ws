@@ -61,7 +61,13 @@ class RosbridgeCppNode : public rclcpp::Node
       std::string type;
       std::shared_ptr<rclcpp::GenericSubscription> subscription;
       std::shared_ptr<WsServer::Connection> connection;
+      int32_t throttle_rate_ms = 0;
+      std::chrono::time_point<std::chrono::system_clock, std::chrono::duration<double>> last_sent_time{};
       void generic_callback(std::shared_ptr<rclcpp::SerializedMessage> serialized_msg) {
+        if(std::chrono::system_clock::now()-last_sent_time < std::chrono::milliseconds(throttle_rate_ms)) {
+          return;
+        }
+        last_sent_time = std::chrono::system_clock::now();
 
         JsonEncoder json_encoder;
         json_encoder.set_message_type(type);
@@ -82,6 +88,7 @@ class RosbridgeCppNode : public rclcpp::Node
       std::string topic = json["topic"];
       std::string type;
       std::string id = json["id"];
+      int throttle_rate_ms = 0;
 
       // get the message type
       if(json.contains("type")) {
@@ -93,7 +100,12 @@ class RosbridgeCppNode : public rclcpp::Node
           type = it_types->second[0];
         }
         std::cout << "Couldn't find type for " << topic << std::endl;
-      }      
+      }
+
+      try {
+        throttle_rate_ms = json["throttle_rate"];
+      } catch (...) 
+      {}
 
 
       auto subscription_info = std::make_shared<SubscriptionInfo>();
@@ -101,9 +113,21 @@ class RosbridgeCppNode : public rclcpp::Node
       subscription_info->type = type;
       subscription_info->id = id;
       subscription_info->connection = connection;
+      subscription_info->throttle_rate_ms = throttle_rate_ms;
       
-      std::cout << "subscribing to topic " << topic << " type " << type << std::endl;
-      subscription_info->subscription = this->create_generic_subscription(topic, type, rclcpp::SensorDataQoS(), std::bind(&RosbridgeCppNode::SubscriptionInfo::generic_callback, subscription_info.get(), _1));
+      std::cout << "subscribing to topic " << topic 
+                << " type " << type 
+                << " throttle_rate_ms " << throttle_rate_ms 
+                << std::endl;
+
+      subscription_info->subscription = this->create_generic_subscription(
+        topic, 
+        type, 
+        rclcpp::SensorDataQoS(), 
+        std::bind(
+          &RosbridgeCppNode::SubscriptionInfo::generic_callback, 
+          subscription_info.get(), 
+          _1));
 
       subscriptions_[id]=subscription_info;
     }
