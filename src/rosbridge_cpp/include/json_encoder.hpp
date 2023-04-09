@@ -6,6 +6,12 @@
 #include <rosidl_typesupport_cpp/identifier.hpp>
 #include <rosidl_typesupport_introspection_cpp/identifier.hpp>
 #include <vector>
+#include  <fastcdr/Cdr.h>
+
+void stream_json(
+  std::ostream & stream, 
+  eprosima::fastcdr::Cdr &cdr, 
+  const rosidl_message_type_support_t* type_data);
 
 class JsonEncoder{
 

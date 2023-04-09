@@ -13,6 +13,8 @@
 
 #include "nlohmann/json.hpp"
 
+#include  <fastcdr/Cdr.h>
+
 using WsServer = SimpleWeb::SocketServer<SimpleWeb::WS>;
 using namespace std::chrono_literals;
 using std::placeholders::_1;
@@ -57,9 +59,16 @@ class RosbridgeCppNode : public rclcpp::Node
       std::string topic;
       std::string id;
       std::string type;
-      std::shared_ptr<rclcpp::GenericSubscription> subcription;
+      std::shared_ptr<rclcpp::GenericSubscription> subscription;
       void generic_callback(std::shared_ptr<rclcpp::SerializedMessage> serialized_msg) {
-        std::cout << "got callback for " << topic << std::endl;
+
+        JsonEncoder json_encoder;
+        json_encoder.set_message_type(type);
+
+        std::stringstream ss_json;
+        json_encoder.stream_json(ss_json, &serialized_msg->get_rcl_serialized_message());
+        std::cout << ss_json.str() << std::endl;
+
       }
     };
 
@@ -77,7 +86,7 @@ class RosbridgeCppNode : public rclcpp::Node
       subscription_info->type = type;
       subscription_info->id = id;
 
-      subscription_info->subcription = this->create_generic_subscription(topic, type, rclcpp::SensorDataQoS(), std::bind(&RosbridgeCppNode::SubscriptionInfo::generic_callback, subscription_info.get(), _1));
+      subscription_info->subscription = this->create_generic_subscription(topic, type, rclcpp::SensorDataQoS(), std::bind(&RosbridgeCppNode::SubscriptionInfo::generic_callback, subscription_info.get(), _1));
 
       subscriptions_[id]=subscription_info;
     }

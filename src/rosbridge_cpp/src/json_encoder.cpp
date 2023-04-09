@@ -60,10 +60,15 @@ void stream_json(
         else{
           array_size = member.array_size_;
         }
+
+        stream << "[";
       }
 
       for (size_t a=0; a < array_size; a++)
       {
+        if(a>0) {
+          stream << ", ";
+        }
         if( member.is_array_ )
         {
           //
@@ -71,7 +76,6 @@ void stream_json(
 
         if(member.type_id_ != ROS_TYPE_MESSAGE && member.type_id_ != ROS_TYPE_STRING)
         {
-          double value = 0;
           switch( member.type_id_)
           {
             case ROS_TYPE_FLOAT:   stream << deserialize<float>(cdr); break;
@@ -97,6 +101,10 @@ void stream_json(
         {
           ::stream_json(stream, cdr, member.members_);
         }
+      }
+    
+      if(member.is_array_) {
+        stream << "]";
       }
     }
     stream << "}";
