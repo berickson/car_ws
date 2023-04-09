@@ -2,8 +2,9 @@
 
 #include <rosidl_typesupport_introspection_cpp/message_introspection.hpp>
 #include <rosidl_typesupport_introspection_cpp/field_types.hpp>
-#include <rosbag2_cpp/typesupport_helpers.hpp>
-#include <rosbag2_cpp/types/introspection_message.hpp>
+//#include <rosbag2_cpp/typesupport_helpers.hpp>
+//#include <rosbag2_cpp/types/introspection_message.hpp>
+#include <rclcpp/rclcpp.hpp>>
 #include <rcutils/time.h>
 #include <functional>
 #include <cmath>
@@ -15,7 +16,7 @@ void JsonEncoder::set_message_type(
 {
   auto library = rclcpp::get_typesupport_library(type_name, rosidl_typesupport_introspection_cpp::typesupport_identifier);
   type_support_ =
-    rosbag2_cpp::get_typesupport_handle(type_name, rosidl_typesupport_introspection_cpp::typesupport_identifier, library);
+    rclcpp::get_typesupport_handle(type_name, rosidl_typesupport_introspection_cpp::typesupport_identifier, *library);
 }
 
 
@@ -124,7 +125,7 @@ void stream_json(
   }
 
 
-void JsonEncoder::stream_json(std::ostream & stream, const rcutils_uint8_array_t *msg) const
+void JsonEncoder::stream_json(std::ostream & stream, const rcl_serialized_message_t *msg) const
 {
   // get cdr reader from buffer
   eprosima::fastcdr::FastBuffer buffer( reinterpret_cast<char*>(msg->buffer), msg->buffer_length);
