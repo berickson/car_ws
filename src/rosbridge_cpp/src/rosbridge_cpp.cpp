@@ -151,6 +151,19 @@ class RosbridgeCppNode : public rclcpp::Node
         }
       };
 
+      ws_endpoint.on_close = [this](std::shared_ptr<WsServer::Connection> connection, int status, const std::string & /*reason*/) {
+        std::cout << "Server: Closed connection " << connection.get() << " with status code " << status << std::endl;
+        for (auto it = subscriptions_.cbegin(); it != subscriptions_.cend() /* not hoisted */; /* no increment */) {
+          if(it->second->connection == connection) {
+            std::cout << "removing subscription to " << it->second->topic << std::endl;
+            subscriptions_.erase(it++);
+          } else {
+            ++it;
+          }
+        }
+      };
+
+
       // Start server and receive assigned port when server is listening for requests
       std::promise<unsigned short> server_port;
       server_thread = std::thread([this,  &server_port]() {
