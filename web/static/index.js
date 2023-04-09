@@ -530,11 +530,9 @@ angular.module("car",[]).controller("CarController", function($scope, $http, $ti
   var fr_subscriber = new ROSLIB.Topic({
     ros : ros,
     name : '/car/speedometers/fr',
-    // messageType: 'car_msgs/speedometer',
+    messageType: 'car_msgs/msg/Speedometer',
     queue_length : 1,
     throttle_rate: 100
-
-    // messageType : 'std_msgs/String'
   });
   fr_subscriber.subscribe(function(message) {
     vm.speedometers.fr = message;
@@ -545,8 +543,8 @@ angular.module("car",[]).controller("CarController", function($scope, $http, $ti
     ros : ros,
     name : '/car/speedometers/fl',
     queue_length : 1,
-    throttle_rate: 100
-    // messageType : 'std_msgs/String'
+    throttle_rate: 100,
+    messageType : 'car_msgs/msg/Speedometer'
   }).subscribe(function(message) {
     vm.speedometers.fl = message;
     get_car_scope().$apply();
@@ -556,8 +554,8 @@ angular.module("car",[]).controller("CarController", function($scope, $http, $ti
     ros : ros,
     name : '/car/speedometers/motor',
     queue_length : 1,
-    throttle_rate: 100
-    // messageType : 'std_msgs/String'
+    throttle_rate: 100,
+    messageType : 'car_msgs/msg/Speedometer'
   }).subscribe(function(message) {
     vm.speedometers.motor = message;
     get_car_scope().$apply();
