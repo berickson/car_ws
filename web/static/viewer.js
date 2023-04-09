@@ -285,8 +285,8 @@ let viewer = (function () {
         scene.add(scan_mesh);
 
         // uncomment to show fps
-        // stats.showPanel(0); // 0: fps, 1: ms, 2: mb, 3+: custom
-        // document.body.appendChild(stats.dom);
+        stats.showPanel(0); // 0: fps, 1: ms, 2: mb, 3+: custom
+        document.body.appendChild(stats.dom);
         on_resize();
         render();
         get_scan();
@@ -399,8 +399,11 @@ let viewer = (function () {
         stats.end();
         renderer.render(scene, camera);
         label_renderer.render(scene, camera);
-        requestAnimationFrame(render);  // force to call again at next repaint
-    }
+        setTimeout( function() {
+
+            requestAnimationFrame( render );
+    
+        }, 1000 / 30 );    }
 
     window.addEventListener("resize", on_resize);
     window.onload = initScene;
