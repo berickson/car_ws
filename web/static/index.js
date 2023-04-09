@@ -1,7 +1,7 @@
 var car_vm;
 
 let ros = new ROSLIB.Ros({
-  url : 'ws://white-desktop:9090'
+  url : 'ws://'+window.location.hostname+':9090'
   });
 
 
