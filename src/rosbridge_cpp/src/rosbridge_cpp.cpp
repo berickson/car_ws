@@ -60,32 +60,49 @@ class RosbridgeCppNode : public rclcpp::Node
       std::string id;
       std::string type;
       std::shared_ptr<rclcpp::GenericSubscription> subscription;
+      std::shared_ptr<WsServer::Connection> connection;
       void generic_callback(std::shared_ptr<rclcpp::SerializedMessage> serialized_msg) {
 
         JsonEncoder json_encoder;
         json_encoder.set_message_type(type);
 
         std::stringstream ss_json;
+        ss_json << "{ \"op\": \"publish\", \"id\": \"" << id << "\", \"topic\":\""<< topic << "\", \"msg\":";
         json_encoder.stream_json(ss_json, &serialized_msg->get_rcl_serialized_message());
-        std::cout << ss_json.str() << std::endl;
+        ss_json << "}";
 
+        connection->send(ss_json.str());
       }
     };
 
     std::map<std::string, std::shared_ptr<SubscriptionInfo>> subscriptions_;
 
 
-    void subscribe(nlohmann::json & json) {
+    void subscribe(nlohmann::json & json, std::shared_ptr<WsServer::Connection> connection) {
       std::string topic = json["topic"];
-      std::string type = json["type"];
+      std::string type;
       std::string id = json["id"];
+
+      // get the message type
+      if(json.contains("type")) {
+         type = json["type"];
+      } else {
+        auto topics = get_topic_names_and_types();
+        auto it_types = topics.find(topic);
+        if(it_types != topics.end()) {
+          type = it_types->second[0];
+        }
+        std::cout << "Couldn't find type for " << topic << std::endl;
+      }      
 
 
       auto subscription_info = std::make_shared<SubscriptionInfo>();
       subscription_info->topic = topic;
       subscription_info->type = type;
       subscription_info->id = id;
-
+      subscription_info->connection = connection;
+      
+      std::cout << "subscribing to topic " << topic << " type " << type << std::endl;
       subscription_info->subscription = this->create_generic_subscription(topic, type, rclcpp::SensorDataQoS(), std::bind(&RosbridgeCppNode::SubscriptionInfo::generic_callback, subscription_info.get(), _1));
 
       subscriptions_[id]=subscription_info;
@@ -99,24 +116,15 @@ class RosbridgeCppNode : public rclcpp::Node
       auto &ws_endpoint = server.endpoint["^.*$"];
       ws_endpoint.on_message = [this](std::shared_ptr<WsServer::Connection> connection, std::shared_ptr<WsServer::InMessage> in_message) {
         try {
-          std::cout << "got message: " << in_message->string().c_str() << std::endl;
           auto json = nlohmann::json::parse(in_message->string());
 
           std::string op = json["op"];
-          std::cout << "op: " << op  << std::endl;
           if(op=="subscribe") {
-            subscribe(json);
+            subscribe(json, connection);
           }
         } catch (...) {
           std::cout << "Exception caught in websocket handler" << std::endl;
         }
-        // auto out_message = make_shared<string>(in_message->string());
-
-        // connection->send(*out_message, [connection, out_message](const SimpleWeb::error_code &ec) {
-        //   if(!ec)
-        //     connection->send(*out_message); // Sent after the first send operation is finished
-        // });
-        // connection->send(*out_message); // Most likely queued. Sent after the first send operation is finished.
       };
 
       // Start server and receive assigned port when server is listening for requests
