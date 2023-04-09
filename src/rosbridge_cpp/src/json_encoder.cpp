@@ -74,32 +74,21 @@ void stream_json(
           //
         }
 
-        if(member.type_id_ != ROS_TYPE_MESSAGE && member.type_id_ != ROS_TYPE_STRING)
+        switch( member.type_id_)
         {
-          switch( member.type_id_)
-          {
-            case ROS_TYPE_FLOAT:   stream << deserialize<float>(cdr); break;
-            case ROS_TYPE_DOUBLE:  stream << deserialize<double>(cdr); break;
-            case ROS_TYPE_INT64:   stream << deserialize<int64_t>(cdr); break;
-            case ROS_TYPE_INT32:   stream << deserialize<int32_t>(cdr); break;
-            case ROS_TYPE_INT16:   stream << deserialize<int16_t>(cdr); break;
-            case ROS_TYPE_INT8:    stream << deserialize<int8_t>(cdr); break;
-            case ROS_TYPE_UINT64:  stream << deserialize<uint64_t>(cdr); break;
-            case ROS_TYPE_UINT32:  stream << deserialize<uint32_t>(cdr); break;
-            case ROS_TYPE_UINT16:  stream << deserialize<uint16_t>(cdr); break;
-            case ROS_TYPE_UINT8:   stream << deserialize<uint8_t>(cdr); break;
-            case ROS_TYPE_BOOLEAN: stream << deserialize<bool>(cdr); break;
-          }
-        }
-        else if(member.type_id_ == ROS_TYPE_STRING)
-        {
-          std::string str;
-          cdr.deserialize( str );
-          stream << "\"" << str << "\"";
-        }
-        else if(member.type_id_ == ROS_TYPE_MESSAGE)
-        {
-          ::stream_json(stream, cdr, member.members_);
+          case ROS_TYPE_FLOAT:   stream << deserialize<float>(cdr); break;
+          case ROS_TYPE_DOUBLE:  stream << deserialize<double>(cdr); break;
+          case ROS_TYPE_INT64:   stream << deserialize<int64_t>(cdr); break;
+          case ROS_TYPE_INT32:   stream << deserialize<int32_t>(cdr); break;
+          case ROS_TYPE_INT16:   stream << deserialize<int16_t>(cdr); break;
+          case ROS_TYPE_INT8:    stream << deserialize<int8_t>(cdr); break;
+          case ROS_TYPE_UINT64:  stream << deserialize<uint64_t>(cdr); break;
+          case ROS_TYPE_UINT32:  stream << deserialize<uint32_t>(cdr); break;
+          case ROS_TYPE_UINT16:  stream << deserialize<uint16_t>(cdr); break;
+          case ROS_TYPE_UINT8:   stream << deserialize<uint8_t>(cdr); break;
+          case ROS_TYPE_BOOLEAN: stream << deserialize<bool>(cdr); break;
+          case ROS_TYPE_STRING:  stream << "\"" << deserialize<std::string>(cdr) << "\""; break;
+          case ROS_TYPE_MESSAGE: ::stream_json(stream, cdr, member.members_); break;
         }
       }
     
