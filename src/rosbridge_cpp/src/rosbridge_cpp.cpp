@@ -41,10 +41,86 @@ class RosbridgeCppNode : public rclcpp::Node
         RCLCPP_INFO(this->get_logger(), "Could not find topic");
       }
 
+      start_webservice();
+      RCLCPP_INFO(this->get_logger(), "constructor complete");
 
     }
 
   private:
+
+    WsServer server;
+    std::thread server_thread;
+
+
+    struct SubscriptionInfo {
+      rclcpp::Node * node;
+      std::string topic;
+      std::string id;
+      std::string type;
+      std::shared_ptr<rclcpp::GenericSubscription> subcription;
+      void generic_callback(std::shared_ptr<rclcpp::SerializedMessage> serialized_msg) {
+        std::cout << "got callback for " << topic << std::endl;
+      }
+    };
+
+    std::map<std::string, std::shared_ptr<SubscriptionInfo>> subscriptions_;
+
+
+    void subscribe(nlohmann::json & json) {
+      std::string topic = json["topic"];
+      std::string type = json["type"];
+      std::string id = json["id"];
+
+
+      auto subscription_info = std::make_shared<SubscriptionInfo>();
+      subscription_info->topic = topic;
+      subscription_info->type = type;
+      subscription_info->id = id;
+
+      subscription_info->subcription = this->create_generic_subscription(topic, type, rclcpp::SensorDataQoS(), std::bind(&RosbridgeCppNode::SubscriptionInfo::generic_callback, subscription_info.get(), _1));
+
+      subscriptions_[id]=subscription_info;
+    }
+
+    void start_webservice() {
+     
+      server.config.port = 9090; // this seems to be the default port
+
+      // configure endpoints
+      auto &ws_endpoint = server.endpoint["^.*$"];
+      ws_endpoint.on_message = [this](std::shared_ptr<WsServer::Connection> connection, std::shared_ptr<WsServer::InMessage> in_message) {
+        try {
+          std::cout << "got message: " << in_message->string().c_str() << std::endl;
+          auto json = nlohmann::json::parse(in_message->string());
+
+          std::string op = json["op"];
+          std::cout << "op: " << op  << std::endl;
+          if(op=="subscribe") {
+            subscribe(json);
+          }
+        } catch (...) {
+          std::cout << "Exception caught in websocket handler" << std::endl;
+        }
+        // auto out_message = make_shared<string>(in_message->string());
+
+        // connection->send(*out_message, [connection, out_message](const SimpleWeb::error_code &ec) {
+        //   if(!ec)
+        //     connection->send(*out_message); // Sent after the first send operation is finished
+        // });
+        // connection->send(*out_message); // Most likely queued. Sent after the first send operation is finished.
+      };
+
+      // Start server and receive assigned port when server is listening for requests
+      std::promise<unsigned short> server_port;
+      server_thread = std::thread([this,  &server_port]() {
+        // Start server
+        server.start([&server_port](unsigned short port) {
+          server_port.set_value(port);
+        });
+      });
+      std::cout << "Server listening on port " << server_port.get_future().get() << std::endl
+          << std::endl;
+    }
 
     void generic_callback(std::shared_ptr<rclcpp::SerializedMessage> serialized_msg) {
       std::string message_type = "std_msgs/msg/String";
@@ -84,38 +160,6 @@ int main(int argc, char * argv[])
 
   // make socket server
   
-  WsServer server;
-  server.config.port = 9090; // this seems to be the default port
-
-  // configure endpoints
-  auto &ws_endpoint = server.endpoint["^.*$"];
-  ws_endpoint.on_message = [](std::shared_ptr<WsServer::Connection> connection, std::shared_ptr<WsServer::InMessage> in_message) {
-    try {
-      std::cout << "got message: " << in_message->string().c_str() << std::endl;
-      auto json = nlohmann::json::parse(in_message->string());
-      std::cout << "op: " << json["op"].get<std::string>() << std::endl;
-    } catch (...) {
-      std::cout << "Exception caught in websocket handler" << std::endl;
-    }
-    // auto out_message = make_shared<string>(in_message->string());
-
-    // connection->send(*out_message, [connection, out_message](const SimpleWeb::error_code &ec) {
-    //   if(!ec)
-    //     connection->send(*out_message); // Sent after the first send operation is finished
-    // });
-    // connection->send(*out_message); // Most likely queued. Sent after the first send operation is finished.
-  };
-
-  // Start server and receive assigned port when server is listening for requests
-  std::promise<unsigned short> server_port;
-  std::thread server_thread([&server, &server_port]() {
-    // Start server
-    server.start([&server_port](unsigned short port) {
-      server_port.set_value(port);
-    });
-  });
-  std::cout << "Server listening on port " << server_port.get_future().get() << std::endl
-       << std::endl;
 
   rclcpp::spin(std::make_shared<RosbridgeCppNode>());
   rclcpp::shutdown();
