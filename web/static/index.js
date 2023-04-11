@@ -184,8 +184,8 @@ angular.module("car",[]).controller("CarController", function($scope, $http, $ti
 
    var reset_odom_service = new ROSLIB.Service({
      ros : ros,
-     name : '/reset_odom',
-     serviceType : 'car_msgs/reset_odom'
+     name : '/car/reset',
+     serviceType : 'std_srvs/Empty'
    });
 
   vm.reset_odometer = function () {

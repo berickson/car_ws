@@ -63,7 +63,40 @@ class RosbridgeCppNode : public rclcpp::Node
       }
     };
 
+    struct PublisherInfo {
+      rclcpp::Node * node;
+      std::string topic;
+      std::string id;
+      std::string type;
+      std::shared_ptr<rclcpp::GenericPublisher> publisher;
+      std::shared_ptr<WsServer::Connection> connection;
+    };
+
     std::map<std::string, std::shared_ptr<SubscriptionInfo>> subscriptions_;
+    std::map<std::string, std::shared_ptr<PublisherInfo>> publishers_;
+
+    void advertise(nlohmann::json & json, std::shared_ptr<WsServer::Connection> connection ) {
+      std::string topic = json["topic"];
+      std::string type = json["type"];
+      std::string id = json["id"];
+
+      auto publisher_info = std::make_shared<PublisherInfo>();
+      publisher_info->topic = topic;
+      publisher_info->type = type;
+      publisher_info->id = id;
+      publisher_info->connection = connection;
+
+      std::cout << "advertising topic " << topic
+                << " type " << type 
+                << " id " << id 
+                << std::endl;
+      
+      publisher_info->publisher = this->create_generic_publisher(
+        topic, 
+        type, 
+        rclcpp::SystemDefaultsQoS());
+      publishers_[id] = publisher_info;
+    }
 
 
     void subscribe(nlohmann::json & json, std::shared_ptr<WsServer::Connection> connection) {
@@ -100,6 +133,7 @@ class RosbridgeCppNode : public rclcpp::Node
       std::cout << "subscribing to topic " << topic 
                 << " type " << type 
                 << " throttle_rate_ms " << throttle_rate_ms 
+                << " id " << id 
                 << std::endl;
 
       subscription_info->subscription = this->create_generic_subscription(
@@ -128,8 +162,23 @@ class RosbridgeCppNode : public rclcpp::Node
           if(op=="subscribe") {
             subscribe(json, connection);
           }
+          else if (op=="call_service"){
+            std::cout << in_message->string() << std::endl;
+            std::string service = json["service"];
+            std::string type = json["type"];
+            std::string command = "timeout 5 ros2 service call " + service + " " + type + " {}";
+            std::cout << "executing: " << command << std::endl; 
+            system(command.c_str());
+          } else if (op=="advertise") {
+            advertise(json, connection);
+          } else if (op=="publish") {
+            std::cout << "publish request " << in_message->string() << std::endl;
+          }
+          else {
+            std::cout << "got op of \"" << op << "\"" << std::endl;
+          }
         } catch (...) {
-          std::cout << "Exception caught in websocket handler" << std::endl;
+          std::cout << "Exception caught in websocket handler " << in_message->string() << std::endl;
         }
       };
 
