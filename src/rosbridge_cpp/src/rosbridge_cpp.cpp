@@ -2,6 +2,7 @@
 #include <functional>
 #include <memory>
 #include <string>
+#include <std_msgs/msg/int32.hpp>
 
 #include "rclcpp/rclcpp.hpp"
 #include "rosidl_typesupport_introspection_cpp/message_introspection.hpp"
@@ -79,19 +80,22 @@ class RosbridgeCppNode : public rclcpp::Node
 
     void advertise(nlohmann::json & json, std::shared_ptr<WsServer::Connection> connection ) {
       std::string topic = json["topic"];
-      std::string type = json["type"];
-      std::string id = json["id"];
+
+
       
       if(publishers_.find(topic) != publishers_.end()) {
         std::cout << " topic already published " << std::endl;
+        return;
       }
-
+      std::string type = json["type"];
+       std::string id = json["id"];
       auto publisher_info = std::make_shared<PublisherInfo>();
       publisher_info->topic = topic;
       publisher_info->type = type;
       publisher_info->id = id;
       publisher_info->connection = connection;
       publisher_info->type_support_library = rclcpp::get_typesupport_library(type, rosidl_typesupport_introspection_cpp::typesupport_identifier);
+
 
       if(publisher_info->type_support_library) {
         std::cout << "got type_support_library for " << type << std::endl;
@@ -108,9 +112,10 @@ class RosbridgeCppNode : public rclcpp::Node
         topic, 
         type, 
         rclcpp::SystemDefaultsQoS());
+        
       std::cout << "before added publisher for " << topic << std::endl;
       publishers_[topic] = publisher_info;
-      std::cout << "added publisher for " << topic << std::endl;
+      std::cout << "added publisher for " << topic << " " << type << std::endl;
     }
 
     void publish(nlohmann::json & json) {
@@ -132,30 +137,64 @@ class RosbridgeCppNode : public rclcpp::Node
       using namespace rosidl_typesupport_introspection_cpp;
       const auto* members = static_cast<const MessageMembers*>(type_support->data);
       
-      std::cout << "1 publish creating SerializedMessage with size " << members->size_of_ << std::endl;
-      rclcpp::SerializedMessage message(members->size_of_);
-      std::cout << "2 publish creating SerializedMessage" << std::endl;
-      auto msg=message.get_rcl_serialized_message();
-      std::cout << "3 publish creating SerializedMessage" << std::endl;
-      eprosima::fastcdr::FastBuffer buffer( reinterpret_cast<char*>(msg.buffer), msg.buffer_length);
-      std::cout << "4 publish creating SerializedMessage" << std::endl;
+
+      eprosima::fastcdr::FastBuffer buffer;
       eprosima::fastcdr::Cdr cdr(
         buffer, 
         eprosima::fastcdr::Cdr::DEFAULT_ENDIAN,
         eprosima::fastcdr::Cdr::DDS_CDR);
-      std::cout << "5 publish creating SerializedMessage" << std::endl;
-      cdr.read_encapsulation();
+      cdr.serialize_encapsulation();
+
+      // cdr.serialize((uint8_t)0x00);
+      // cdr.serialize((uint8_t)0x01);
+      // cdr.serialize((uint8_t)0x00);
+      // cdr.serialize((uint8_t)0x00);
+      cdr.serialize((uint8_t)0x2a);
+      cdr.serialize((uint8_t)0x00);
+      cdr.serialize((uint8_t)0x00);
+      cdr.serialize((uint8_t)0x00);
 
 
 
 
-      for(uint32_t i=0; i<members->member_count_ ; ++i) {
-        auto & member =  members->members_[i];
+      // //for(uint32_t i=0; i<members->member_count_ ; ++i)
+      // for(uint32_t i=0; i<6 ; ++i) {
+      //   std::cout << "loop " << i << std::endl;
+      //   double x = i*0.1;
+      //   cdr.serialize(x);
+      //   //auto & member =  members->members_[i];
+      //   //cout << member.name_ << endl;
+      // }
+      // cdr.serialize((int32_t)4);
+      // cdr.serialize((int32_t)42);
+
+      // rcl_serialized_message_t msg;
+      // msg.buffer = (uint8_t*)buffer.getBuffer();
+      // msg.buffer_capacity = cdr.getSerializedDataLength();
+      // msg.buffer_length = cdr.getSerializedDataLength();
+
+      rclcpp::SerializedMessage message;
+      message.reserve(cdr.getSerializedDataLength());
+      auto rcl_msg = message.get_rcl_serialized_message();
+      memcpy(rcl_msg.buffer, buffer.getBuffer(), cdr.getSerializedDataLength());
+      rcl_msg.buffer_length = cdr.getSerializedDataLength();
+      for(size_t i=0;i<rcl_msg.buffer_length; i++) {
+        //std::cout << std::format("{:x}",rcl_message.buffer[i]);
+        
+         std::cout << std::setfill('0') 
+              << std::setw(2) 
+              << std::uppercase 
+              << std::hex 
+              << (0xFF & rcl_msg.buffer[i]) 
+              << " " << std::dec;
       }
 
-      std::cout << "done with publish" << std::endl;
-      // type_support_handle->
-      // publisher_info->publisher->publish(
+      std::cout << std::endl;
+ //     message.release_rcl_serialized_message();
+      // publisher_info->publisher->publish(message);
+      auto c_publisher = publisher_info->publisher->get_publisher_handle();
+      rcl_publish_serialized_message(c_publisher.get(), &rcl_msg, NULL);
+      std::cout << "done with publish to " << publisher_info->publisher->get_topic_name() << " " << publisher_info->type << std::endl;
     }
 
 
@@ -231,7 +270,6 @@ class RosbridgeCppNode : public rclcpp::Node
             std::ignore = system(command.c_str());
           } else if (op=="advertise") {
             advertise(json, connection);
-            std::cout << "advertise done" << std::endl;
           } else if (op=="publish") {
             std::cout << "calling publish " << std::endl;
             publish(json);
@@ -278,17 +316,17 @@ class RosbridgeCppNode : public rclcpp::Node
 int main(int argc, char * argv[])
 {
   rclcpp::init(argc, argv);
-  {
-    std::string message_type = "std_srvs/srv/Empty_Request";
-    auto library = rclcpp::get_typesupport_library(message_type, "rosidl_typesupport_cpp");
-    auto type_support_handle = rclcpp::get_typesupport_handle(message_type, "rosidl_typesupport_cpp", *library);
+  // {
+  //   std::string message_type = "std_srvs/srv/Empty_Request";
+  //   auto library = rclcpp::get_typesupport_library(message_type, "rosidl_typesupport_cpp");
+  //   auto type_support_handle = rclcpp::get_typesupport_handle(message_type, "rosidl_typesupport_cpp", *library);
 
-    if(type_support_handle) {
-      std::cout << "**** got type support ****" << std::endl;
-    } else {
-      std::cout << "**** FAILED to get type support ****" << std::endl;
-    }
-  }
+  //   if(type_support_handle) {
+  //     std::cout << "**** got type support ****" << std::endl;
+  //   } else {
+  //     std::cout << "**** FAILED to get type support ****" << std::endl;
+  //   }
+  // }
 
   rclcpp::spin(std::make_shared<RosbridgeCppNode>());
   rclcpp::shutdown();
