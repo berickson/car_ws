@@ -4,7 +4,7 @@
 #include <rosidl_typesupport_introspection_cpp/field_types.hpp>
 //#include <rosbag2_cpp/typesupport_helpers.hpp>
 //#include <rosbag2_cpp/types/introspection_message.hpp>
-#include <rclcpp/rclcpp.hpp>>
+#include <rclcpp/rclcpp.hpp>
 #include <rcutils/time.h>
 #include <functional>
 #include <cmath>
