@@ -9,6 +9,8 @@
 #include <functional>
 #include <cmath>
 #include  <fastcdr/Cdr.h>
+#include "nlohmann/json.hpp"
+#include "rosidl_typesupport_introspection_cpp/message_introspection.hpp"
 
 
 void JsonEncoder::set_message_type(
@@ -137,3 +139,36 @@ void JsonEncoder::stream_json(std::ostream & stream, const rcl_serialized_messag
   ::stream_json(stream, cdr, type_support_);
 }
 
+
+using namespace rosidl_typesupport_introspection_cpp;
+void serialize_json_to_cdr(
+  eprosima::fastcdr::Cdr &cdr, 
+  nlohmann::json & json, 
+  const MessageMembers * members) 
+{
+  //std::cout << "serializing json to cdr" << std::endl;
+  for(uint32_t i=0; i<members->member_count_ ; ++i) {
+    auto member = members->members_[i];
+    //std::cout << "streaming " << member.name_ << std::endl;
+    auto e = json[member.name_];
+    switch(member.type_id_) {
+      case ROS_TYPE_INT64:   cdr.serialize( e.get<int64_t>()); break;  
+      case ROS_TYPE_INT32:   cdr.serialize( e.get<int32_t>()); break;
+      case ROS_TYPE_INT16:   cdr.serialize( e.get<int16_t>()); break;   
+      case ROS_TYPE_INT8:    cdr.serialize( e.get<int8_t>()); break;
+
+      case ROS_TYPE_UINT64:  cdr.serialize( e.get<uint64_t>()); break;
+      case ROS_TYPE_UINT32:  cdr.serialize( e.get<uint32_t>()); break;
+      case ROS_TYPE_UINT16:  cdr.serialize( e.get<uint16_t>()); break;
+      case ROS_TYPE_UINT8:   cdr.serialize( e.get<uint8_t>()); break;
+
+      case ROS_TYPE_FLOAT:   cdr.serialize( e.get<float>()); break; // same as ROS_TYPE_FLOAT32
+      case ROS_TYPE_DOUBLE:  cdr.serialize( e.get<double>()); break; // same as ROS_TYPE_FLOAT64
+
+      case ROS_TYPE_STRING:  cdr.serialize( e.get<std::string>()); break; // todo: decode
+      case ROS_TYPE_MESSAGE: serialize_json_to_cdr(cdr, e, (MessageMembers *) member.members_->data); break; 
+      default: break;
+    }
+  }
+
+}

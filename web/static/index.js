@@ -69,27 +69,27 @@ angular.module("car",[]).controller("CarController", function($scope, $http, $ti
     }
   };
 
+  var topic = new ROSLIB.Topic({
+    ros : ros,
+    name : '/cmd_vel2',
+    messageType : 'geometry_msgs/Twist'
+  });
 
   vm.poweroff = function () {
-    var cmdVel = new ROSLIB.Topic({
-        ros : ros,
-        name : '/cmd_vel',
-        messageType : 'geometry_msgs/Twist'
-      });
-      
-      var twist = new ROSLIB.Message({
-        linear : {
-          x : 0.1,
-          y : 0.2,
-          z : 0.3
-        },
-        angular : {
-          x : -0.1,
-          y : -0.2,
-          z : -0.3
-        }
-      });
-      cmdVel.publish(twist);
+    var twist = new ROSLIB.Message({
+      linear: {
+        x: this.Math.random()*0.1,
+        y: 0.0,
+        z: 0.0
+
+      },
+      angular: {
+        x: 0,
+        y: 0,
+        z: Math.random()*0.1
+      }
+    });
+    topic.publish(twist);
     return;
       vm.go_error = "";
     $http.put('/pi/poweroff', "1").success(function () {
@@ -497,6 +497,25 @@ angular.module("car",[]).controller("CarController", function($scope, $http, $ti
   //     });
   // };
   // poller();
+
+
+  var int_listener = new ROSLIB.Topic({
+    ros : ros,
+    name : '/my_int2',
+    messageType: 'std_msgs/msg/Int32',
+    queue_length : 1,
+    throttle_rate: 1000
+
+    
+    // messageType : 'std_msgs/String'
+  });
+
+  
+  int_listener.subscribe(function(message) {
+    console.log(message);
+    // vm.battery_percent = message.percentage * 100;
+  });
+
 
   
   var battery_listener = new ROSLIB.Topic({
