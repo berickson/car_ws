@@ -71,7 +71,27 @@ angular.module("car",[]).controller("CarController", function($scope, $http, $ti
 
 
   vm.poweroff = function () {
-    vm.go_error = "";
+    var cmdVel = new ROSLIB.Topic({
+        ros : ros,
+        name : '/cmd_vel',
+        messageType : 'geometry_msgs/Twist'
+      });
+      
+      var twist = new ROSLIB.Message({
+        linear : {
+          x : 0.1,
+          y : 0.2,
+          z : 0.3
+        },
+        angular : {
+          x : -0.1,
+          y : -0.2,
+          z : -0.3
+        }
+      });
+      cmdVel.publish(twist);
+    return;
+      vm.go_error = "";
     $http.put('/pi/poweroff', "1").success(function () {
       $log.info('poweroff success');
     }).error(function (response, code) {

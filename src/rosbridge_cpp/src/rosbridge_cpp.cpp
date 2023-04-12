@@ -4,8 +4,9 @@
 #include <string>
 
 #include "rclcpp/rclcpp.hpp"
+#include "rosidl_typesupport_introspection_cpp/message_introspection.hpp"
 #include "json_encoder.hpp"
-
+//#include <rosidl_runtime_c/service_type_support_struct.h>
 
 #include "Simple-WebSocket-Server/server_ws.hpp"
 #include <future>
@@ -70,6 +71,7 @@ class RosbridgeCppNode : public rclcpp::Node
       std::string type;
       std::shared_ptr<rclcpp::GenericPublisher> publisher;
       std::shared_ptr<WsServer::Connection> connection;
+      std::shared_ptr<rcpputils::SharedLibrary> type_support_library;
     };
 
     std::map<std::string, std::shared_ptr<SubscriptionInfo>> subscriptions_;
@@ -79,12 +81,23 @@ class RosbridgeCppNode : public rclcpp::Node
       std::string topic = json["topic"];
       std::string type = json["type"];
       std::string id = json["id"];
+      
+      if(publishers_.find(topic) != publishers_.end()) {
+        std::cout << " topic already published " << std::endl;
+      }
 
       auto publisher_info = std::make_shared<PublisherInfo>();
       publisher_info->topic = topic;
       publisher_info->type = type;
       publisher_info->id = id;
       publisher_info->connection = connection;
+      publisher_info->type_support_library = rclcpp::get_typesupport_library(type, rosidl_typesupport_introspection_cpp::typesupport_identifier);
+
+      if(publisher_info->type_support_library) {
+        std::cout << "got type_support_library for " << type << std::endl;
+      } else {
+        std::cout << "*** failed to get type_support_library for " << type << std::endl;
+      }
 
       std::cout << "advertising topic " << topic
                 << " type " << type 
@@ -95,8 +108,56 @@ class RosbridgeCppNode : public rclcpp::Node
         topic, 
         type, 
         rclcpp::SystemDefaultsQoS());
-      publishers_[id] = publisher_info;
+      std::cout << "before added publisher for " << topic << std::endl;
+      publishers_[topic] = publisher_info;
+      std::cout << "added publisher for " << topic << std::endl;
     }
+
+    void publish(nlohmann::json & json) {
+      std::string topic = json["topic"];
+      auto publisher_info = publishers_[topic];
+      if(!publisher_info) {
+        std::cout << "couldn't find publisher for " << topic << std::endl;
+        return;
+      }
+      std::string message_type = publisher_info->type;
+
+      auto type_support =
+          rclcpp::get_typesupport_handle(message_type, rosidl_typesupport_introspection_cpp::typesupport_identifier, *(publisher_info->type_support_library));
+
+
+      
+      std::cout << "message type " << message_type << " type_support->typesupport_identifier " << type_support->typesupport_identifier << std::endl;
+
+      using namespace rosidl_typesupport_introspection_cpp;
+      const auto* members = static_cast<const MessageMembers*>(type_support->data);
+      
+      std::cout << "1 publish creating SerializedMessage with size " << members->size_of_ << std::endl;
+      rclcpp::SerializedMessage message(members->size_of_);
+      std::cout << "2 publish creating SerializedMessage" << std::endl;
+      auto msg=message.get_rcl_serialized_message();
+      std::cout << "3 publish creating SerializedMessage" << std::endl;
+      eprosima::fastcdr::FastBuffer buffer( reinterpret_cast<char*>(msg.buffer), msg.buffer_length);
+      std::cout << "4 publish creating SerializedMessage" << std::endl;
+      eprosima::fastcdr::Cdr cdr(
+        buffer, 
+        eprosima::fastcdr::Cdr::DEFAULT_ENDIAN,
+        eprosima::fastcdr::Cdr::DDS_CDR);
+      std::cout << "5 publish creating SerializedMessage" << std::endl;
+      cdr.read_encapsulation();
+
+
+
+
+      for(uint32_t i=0; i<members->member_count_ ; ++i) {
+        auto & member =  members->members_[i];
+      }
+
+      std::cout << "done with publish" << std::endl;
+      // type_support_handle->
+      // publisher_info->publisher->publish(
+    }
+
 
 
     void subscribe(nlohmann::json & json, std::shared_ptr<WsServer::Connection> connection) {
@@ -145,7 +206,7 @@ class RosbridgeCppNode : public rclcpp::Node
           subscription_info.get(), 
           _1));
 
-      subscriptions_[id]=subscription_info;
+      subscriptions_[topic]=subscription_info;
     }
 
     void start_webservice() {
@@ -161,18 +222,19 @@ class RosbridgeCppNode : public rclcpp::Node
           std::string op = json["op"];
           if(op=="subscribe") {
             subscribe(json, connection);
-          }
-          else if (op=="call_service"){
+          } else if (op=="call_service"){
             std::cout << in_message->string() << std::endl;
             std::string service = json["service"];
             std::string type = json["type"];
             std::string command = "timeout 5 ros2 service call " + service + " " + type + " {}";
             std::cout << "executing: " << command << std::endl; 
-            system(command.c_str());
+            std::ignore = system(command.c_str());
           } else if (op=="advertise") {
             advertise(json, connection);
+            std::cout << "advertise done" << std::endl;
           } else if (op=="publish") {
-            std::cout << "publish request " << in_message->string() << std::endl;
+            std::cout << "calling publish " << std::endl;
+            publish(json);
           }
           else {
             std::cout << "got op of \"" << op << "\"" << std::endl;
@@ -212,9 +274,22 @@ class RosbridgeCppNode : public rclcpp::Node
     size_t count_;
 };
 
+
 int main(int argc, char * argv[])
 {
   rclcpp::init(argc, argv);
+  {
+    std::string message_type = "std_srvs/srv/Empty_Request";
+    auto library = rclcpp::get_typesupport_library(message_type, "rosidl_typesupport_cpp");
+    auto type_support_handle = rclcpp::get_typesupport_handle(message_type, "rosidl_typesupport_cpp", *library);
+
+    if(type_support_handle) {
+      std::cout << "**** got type support ****" << std::endl;
+    } else {
+      std::cout << "**** FAILED to get type support ****" << std::endl;
+    }
+  }
+
   rclcpp::spin(std::make_shared<RosbridgeCppNode>());
   rclcpp::shutdown();
   return 0;

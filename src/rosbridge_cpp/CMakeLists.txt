@@ -9,12 +9,14 @@ endif()
 find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(std_msgs REQUIRED)
+find_package(std_srvs REQUIRED)
+find_package(tf2_web_republisher REQUIRED)
 
 find_package(rcpputils REQUIRED)
 find_package(rmw_fastrtps_cpp REQUIRED)
 find_package(sensor_msgs REQUIRED)
 find_package(geometry_msgs REQUIRED)
-
+find_package(rosidl_runtime_c REQUIRED)
 add_executable(
   rosbridge_cpp 
   src/rosbridge_cpp.cpp
@@ -26,7 +28,11 @@ ament_target_dependencies(
   rosbridge_cpp
   rclcpp
   std_msgs
+  std_srvs
+  geometry_msgs
+  tf2_web_republisher
   rmw_fastrtps_cpp
+  rosidl_runtime_c
 )
 
 target_include_directories(rosbridge_cpp PUBLIC
@@ -48,5 +54,6 @@ if(BUILD_TESTING)
   set(ament_cmake_cpplint_FOUND TRUE)
   ament_lint_auto_find_test_dependencies()
 endif()
+
 
 ament_package()
