@@ -144,43 +144,16 @@ class RosbridgeCppNode : public rclcpp::Node
         eprosima::fastcdr::Cdr::DEFAULT_ENDIAN,
         eprosima::fastcdr::Cdr::DDS_CDR);
       cdr.serialize_encapsulation();
+      serialize_json_to_cdr(cdr, json["msg"], members);
 
-      // cdr.serialize((uint8_t)0x00);
-      // cdr.serialize((uint8_t)0x01);
-      // cdr.serialize((uint8_t)0x00);
-      // cdr.serialize((uint8_t)0x00);
-      cdr.serialize((uint8_t)0x2a);
-      cdr.serialize((uint8_t)0x00);
-      cdr.serialize((uint8_t)0x00);
-      cdr.serialize((uint8_t)0x00);
-
-
-
-
-      // //for(uint32_t i=0; i<members->member_count_ ; ++i)
-      // for(uint32_t i=0; i<6 ; ++i) {
-      //   std::cout << "loop " << i << std::endl;
-      //   double x = i*0.1;
-      //   cdr.serialize(x);
-      //   //auto & member =  members->members_[i];
-      //   //cout << member.name_ << endl;
-      // }
-      // cdr.serialize((int32_t)4);
-      // cdr.serialize((int32_t)42);
-
-      // rcl_serialized_message_t msg;
-      // msg.buffer = (uint8_t*)buffer.getBuffer();
-      // msg.buffer_capacity = cdr.getSerializedDataLength();
-      // msg.buffer_length = cdr.getSerializedDataLength();
-
-      rclcpp::SerializedMessage message;
-      message.reserve(cdr.getSerializedDataLength());
-      auto rcl_msg = message.get_rcl_serialized_message();
-      memcpy(rcl_msg.buffer, buffer.getBuffer(), cdr.getSerializedDataLength());
+      // convert fast buffer to rcl_msg
+      
+      rcl_serialized_message_t rcl_msg;
+      rcl_msg.buffer = (uint8_t*) buffer.getBuffer();
+      rcl_msg.buffer_capacity = buffer.getBufferSize();
       rcl_msg.buffer_length = cdr.getSerializedDataLength();
-      for(size_t i=0;i<rcl_msg.buffer_length; i++) {
-        //std::cout << std::format("{:x}",rcl_message.buffer[i]);
-        
+
+      for(size_t i=0;i<rcl_msg.buffer_length; i++) {        
          std::cout << std::setfill('0') 
               << std::setw(2) 
               << std::uppercase 
@@ -188,10 +161,8 @@ class RosbridgeCppNode : public rclcpp::Node
               << (0xFF & rcl_msg.buffer[i]) 
               << " " << std::dec;
       }
-
       std::cout << std::endl;
- //     message.release_rcl_serialized_message();
-      // publisher_info->publisher->publish(message);
+
       auto c_publisher = publisher_info->publisher->get_publisher_handle();
       rcl_publish_serialized_message(c_publisher.get(), &rcl_msg, NULL);
       std::cout << "done with publish to " << publisher_info->publisher->get_topic_name() << " " << publisher_info->type << std::endl;
