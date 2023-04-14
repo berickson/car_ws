@@ -144,7 +144,8 @@ class RosbridgeCppNode : public rclcpp::Node
         eprosima::fastcdr::Cdr::DEFAULT_ENDIAN,
         eprosima::fastcdr::Cdr::DDS_CDR);
       cdr.serialize_encapsulation();
-      serialize_json_to_cdr(cdr, json["msg"], members);
+      auto msg_json = json["msg"];
+      serialize_json_to_cdr(cdr, &msg_json, members);
 
       // convert fast buffer to rcl_msg
       

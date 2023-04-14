@@ -19,7 +19,7 @@ void stream_json(
 
 void serialize_json_to_cdr(
   eprosima::fastcdr::Cdr &cdr, 
-  nlohmann::json & json, 
+  nlohmann::json * json, 
   const rosidl_typesupport_introspection_cpp::MessageMembers * members);
 
 class JsonEncoder{

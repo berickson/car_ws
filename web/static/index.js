@@ -78,14 +78,9 @@ angular.module("car",[]).controller("CarController", function($scope, $http, $ti
   vm.poweroff = function () {
     var twist = new ROSLIB.Message({
       linear: {
-        x: this.Math.random()*0.1,
-        y: 0.0,
-        z: 0.0
-
+        x: this.Math.random()*0.1
       },
       angular: {
-        x: 0,
-        y: 0,
         z: Math.random()*0.1
       }
     });
