@@ -1,4 +1,5 @@
 #include <memory>
+#include<unistd.h>
 
 #include "rclcpp/rclcpp.hpp"
 
@@ -164,6 +165,16 @@ class Car : public rclcpp::Node
         std::shared_ptr<std_srvs::srv::Empty::Response>  /*response*/)
     {
       RCLCPP_INFO(this->get_logger(), "reset");
+
+      auto pid = fork();
+      if(pid==0) {
+        const char * volume = "30"; // 0-200
+        execlp("espeak", "espeak", "\"The odometer has been reset.\"","-a",volume, NULL);
+        std::cout << "called espeak" << std::endl;
+      }
+      signal(SIGCHLD,SIG_IGN); // prevents child from becoming a zombie
+
+
       ackermann_.reset();
     }
 
