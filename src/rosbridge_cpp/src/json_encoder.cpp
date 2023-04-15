@@ -146,7 +146,11 @@ template <class T> void serialize(eprosima::fastcdr::Cdr &cdr, nlohmann::json * 
   if(json && json->contains(member.name_)) {
     cdr.serialize((*json)[member.name_].get<T>());
   } else {
-    cdr.serialize(T{});
+    if(member.default_value_) {
+      cdr.serialize(*(T*)member.default_value_);
+    } else {
+      cdr.serialize(T{});
+    }
   }
 }
 
