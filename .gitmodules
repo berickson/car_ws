@@ -11,3 +11,9 @@
 [submodule "src/sllidar_ros2"]
 	path = src/sllidar_ros2
 	url = https://github.com/Slamtec/sllidar_ros2.git
+[submodule "src/sim_car"]
+	path = src/sim_car
+	url = git@github.com:berickson/sim_car.git
+[submodule "src/nav2_line_following_controller"]
+	path = src/nav2_line_following_controller
+	url = git@github.com:berickson/nav2_line_following_controller.git
