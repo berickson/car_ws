@@ -8,7 +8,7 @@
 
 using namespace std;
 
-void log(string severity, string message)
+void log(string /*severity*/, string /*message*/)
 {
   //ofstream f;
   //f.open("car-log.txt", ofstream::out | ofstream::app );
@@ -74,7 +74,7 @@ log_entry_exit::~log_entry_exit()
 
 
 void log_backtrace() {
-  size_t max_count = 25;
+  const size_t max_count = 25;
   void * array[max_count];
 
   // get void*'s for all entries on the stack
@@ -82,7 +82,7 @@ void log_backtrace() {
   char **strings = backtrace_symbols(array, count);
 
   // print out all the frames to stderr
-  for(int i = 0; i < count; ++i) {
+  for(size_t i = 0; i < count; ++i) {
     log_error(strings[i]);
   }
   free(strings);
