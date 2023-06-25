@@ -152,5 +152,7 @@
         ".vscode-insiders",
         ".devcontainer/devcontainer.json"
     ],
-    "cmake.sourceDirectory": "${workspaceFolder}/src/rosbridge_cpp"
+    "ros.distro": "humble",
+    "ros.rosSetupScript": "/opt/ros/humble/setup.bash",
+    "cmake.configureOnOpen": false
 }
