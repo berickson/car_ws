@@ -105,10 +105,6 @@
     ],
     "C_Cpp.default.intelliSenseMode": "linux-gcc-x86",
     "C_Cpp.formatting": "disabled",
-    "uncrustify.configPath.linux": "/opt/ros/humble/lib/python3.10/site-packages/ament_uncrustify/configuration/ament_code_style.cfg",
-    "[cpp]": {
-        "editor.defaultFormatter": "zachflower.uncrustify"
-    },
     "search.exclude": {
         "**/node_modules": true,
         "**/bower_components": true,
@@ -152,7 +148,7 @@
         ".vscode-insiders",
         ".devcontainer/devcontainer.json"
     ],
-    "ros.distro": "humble",
-    "ros.rosSetupScript": "/opt/ros/humble/setup.bash",
+    "ros.distro": "iron",
+    "ros.rosSetupScript": "/opt/ros/iron/setup.bash",
     "cmake.configureOnOpen": false
 }
