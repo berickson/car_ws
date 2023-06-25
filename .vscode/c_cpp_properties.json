@@ -1,19 +1,28 @@
 {
-    "configurations": [
-        {
-            "name": "Linux",
-            "includePath": [
-                "${workspaceFolder}/**",
-                "/opt/ros/humble/include/**"
-            ],
-            "defines": [],
-            "compilerPath": "/usr/bin/gcc",
-            "compileCommands": "${workspaceFolder}/build/compile_commands.json",
-            "cStandard": "c99",
-            "cppStandard": "c++14",
-            "intelliSenseMode": "linux-gcc-x64",
-            "configurationProvider": "ms-vscode.cmake-tools"
-        }
-    ],
-    "version": 4
+  "configurations": [
+    {
+      "browse": {
+        "databaseFilename": "${default}",
+        "limitSymbolsToIncludedHeaders": false
+      },
+      "includePath": [
+        "/home/brian/projects/car_ws/install/tf2_web_republisher/include/**",
+        "/home/brian/projects/car_ws/install/nav2_line_following_controller/include/**",
+        "/home/brian/projects/car_ws/install/micro_ros_agent/include/**",
+        "/home/brian/projects/car_ws/install/micro_ros_msgs/include/**",
+        "/home/brian/projects/car_ws/install/car_msgs/include/**",
+        "/opt/ros/iron/include/**",
+        "/home/brian/projects/car_ws/src/nav2_line_following_controller/include/**",
+        "/home/brian/projects/car_ws/src/rosbridge_cpp/include/**",
+        "/home/brian/projects/car_ws/src/uros/micro-ROS-Agent/micro_ros_agent/include/**",
+        "/usr/include/**"
+      ],
+      "name": "ROS",
+      "intelliSenseMode": "gcc-x64",
+      "compilerPath": "/usr/bin/gcc",
+      "cStandard": "gnu11",
+      "cppStandard": "c++14"
+    }
+  ],
+  "version": 4
 }
