@@ -4,6 +4,7 @@
   // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
   "version": "0.2.0",
   "configurations": [
+
     // Example launch of a python file
     {
       "name": "Python: Current File",
@@ -20,6 +21,25 @@
       "program": "${workspaceFolder}/install/lib/${input:package}/${input:program}",
       "args": [],
       "preLaunchTask": "build",
+      "stopAtEntry": true,
+      "cwd": "${workspaceFolder}",
+      "externalConsole": false,
+      "MIMode": "gdb",
+      "setupCommands": [
+        {
+          "description": "Enable pretty-printing for gdb",
+          "text": "-enable-pretty-printing",
+          "ignoreFailures": true
+        }
+      ]
+    },
+    {
+      "name": "(gdb) route_test",
+      "type": "cppdbg",
+      "request": "launch",
+      "program": "${workspaceFolder}/build/nav2_line_following_controller/route_test",
+      "args": [],
+      "preLaunchTask": "",
       "stopAtEntry": true,
       "cwd": "${workspaceFolder}",
       "externalConsole": false,
@@ -51,6 +71,7 @@
         }
       ]
     },
+
     //Example of a ROS Launch file
     {
       "name": "ROS: Launch File (merge-install)",

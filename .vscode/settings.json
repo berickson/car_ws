@@ -150,5 +150,6 @@
     ],
     "ros.distro": "iron",
     "ros.rosSetupScript": "/opt/ros/iron/setup.bash",
-    "cmake.configureOnOpen": false
+    "cmake.configureOnOpen": false,
+    "cmake.sourceDirectory": "/home/brian/projects/car_ws/src/nav2_line_following_controller"
 }
