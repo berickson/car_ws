@@ -289,9 +289,11 @@ void Car::car_update_topic_callback(const car_msgs::msg::Update::SharedPtr d){
     
     geometry_msgs::msg::PoseStamped pose_msg;
 
+    auto stamp = now(); // was d->header.stamp;
+
     Point rear_position = ackermann_.rear_position();
     
-    pose_msg.header.stamp = d->header.stamp;
+    pose_msg.header.stamp = stamp;
     pose_msg.header.frame_id = "odom";
     // pose_msg.child_frame_id = turtle_name;
     pose_msg.pose.position.x = rear_position.x;
@@ -306,13 +308,15 @@ void Car::car_update_topic_callback(const car_msgs::msg::Update::SharedPtr d){
 
     ackerman_fr_publisher_->publish(pose_msg);
 
+    std::vector<geometry_msgs::msg::TransformStamped> tf_msgs;
+
     // odom->base_footprint
     {
       geometry_msgs::msg::TransformStamped tf_msg;
 
       tf_msg.header.frame_id = "odom";
       tf_msg.child_frame_id = "base_footprint";
-      tf_msg.header.stamp = d->header.stamp;
+      tf_msg.header.stamp = stamp;
       tf_msg.transform.translation.x = rear_position.x;
       tf_msg.transform.translation.y = rear_position.y;
       tf_msg.transform.translation.z = 0.0;
@@ -321,8 +325,7 @@ void Car::car_update_topic_callback(const car_msgs::msg::Update::SharedPtr d){
       tf_msg.transform.rotation.z = q.z();
       tf_msg.transform.rotation.w = q.w();
 
-      tf_broadcaster_->sendTransform(tf_msg);
-
+      tf_msgs.push_back(tf_msg);
     }
 
     // base_footprint->base_link
@@ -334,7 +337,7 @@ void Car::car_update_topic_callback(const car_msgs::msg::Update::SharedPtr d){
 
       tf_msg.header.frame_id = "base_footprint";
       tf_msg.child_frame_id = "base_link";
-      tf_msg.header.stamp = d->header.stamp;
+      tf_msg.header.stamp = stamp;
       tf_msg.transform.translation.x = 0.0;
       tf_msg.transform.translation.y = 0.0;
       tf_msg.transform.translation.z = 0.0;
@@ -342,7 +345,7 @@ void Car::car_update_topic_callback(const car_msgs::msg::Update::SharedPtr d){
       tf_msg.transform.rotation.y = q.y();
       tf_msg.transform.rotation.z = q.z();
       tf_msg.transform.rotation.w = q.w();
-      tf_broadcaster_->sendTransform(tf_msg);
+      tf_msgs.push_back(tf_msg);
     }
 
     // base_link->laser_scanner_link
@@ -351,7 +354,7 @@ void Car::car_update_topic_callback(const car_msgs::msg::Update::SharedPtr d){
 
       tf_msg.header.frame_id = "base_link";
       tf_msg.child_frame_id = "laser_scanner_link";
-      tf_msg.header.stamp = d->header.stamp;
+      tf_msg.header.stamp = stamp;
       tf_msg.transform.translation.x = 0.19;
       tf_msg.transform.translation.y = 0.0;
       tf_msg.transform.translation.z = 0.22;
@@ -359,8 +362,10 @@ void Car::car_update_topic_callback(const car_msgs::msg::Update::SharedPtr d){
       tf_msg.transform.rotation.y = 1.0;
       tf_msg.transform.rotation.z = 0.0;
       tf_msg.transform.rotation.w = 0.0;
-      tf_broadcaster_->sendTransform(tf_msg);
-  }
+      tf_msgs.push_back(tf_msg);
+    }
+    tf_broadcaster_->sendTransform(tf_msgs);
+
 
 
 
