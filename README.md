@@ -2,54 +2,67 @@
 
 ## Installing on Desktop
 
-- Install ROS Iron
-```
-sudo apt install ros-iron-desktop-full
-```
+1. **Install ROS Iron**
+    ```bash
+    sudo apt install ros-iron-desktop-full
+    ```
 
-- Install Colcon
-```
-sudo apt install python3-colcon-common-extensions
-```
-- Clone this repo including submodules
+2. **Install Colcon**
+    ```
+    sudo apt install python3-colcon-common-extensions
+    ```
+3. **Clone the Repository**
+    ```bash
+    git clone https://github.com/berickson/car_ws.git --recurse-submodules
+    ```
 
-```bash
-git clone https://github.com/berickson/car_ws.git --recurse-submodules
-```
+4. **Install Dependencies**
+    ```bash
+    rosdep install --from-paths src --ignore-src -r -y
+    ```
 
-- Install Dependencies
+5. **Prepare udev rules for Lidar**
 
-```bash
-rosdep install --from-paths src --ignore-src -r -y
-```
+    Copy the following text into `/etc/udev/rules.d/99-rplidar-udev.rules` to expose lidar on `/dev/rplidar`:
+    ```text
+    # expose lidar on /dev/rplidar
+    #
+    KERNEL=="ttyUSB*", ATTRS{idVendor}=="10c4", ATTRS{idProduct}=="ea60", MODE:="0777", SYMLINK+="rplidar"
+    ```
+    To apply the rules, log out and back in, or run:
+    ```bash
+    sudo udevadm control --reload-rules && sudo udevadm trigger
+    ```
 
-- Prepare your udev rules for your lidar
-
-Copy this text into /etc/udev/rules.d/99-rplidar-udev.rules to expose lidar on /dev/rplidar
-```text
-# expose lidar on /dev/rplidar
-#
-KERNEL=="ttyUSB*", ATTRS{idVendor}=="10c4", ATTRS{idProduct}=="ea60", MODE:="0777", SYMLINK+="rplidar"
-```
-logout and back in to apply rules, or
-```bash
-sudo udevadm control --reload-rules && sudo udevadm trigger
-```
-
-## Building
+## Building the Project
 need to fix this, but for now...
 ```
 colcon build --packages-skip nav2_simple_commander nav2_util nav2_behavior_tree
 ```
 
-## Run the simulation
-```
-source install/setup.bash
-ros2 launch sim_car bringup.launch.py
-```
-Wait for the costmaps to show in RVIZ, then use the [2D Goal Pose] button in RVIZ to navigate.
+## Running the Simulation
 
-## Todo
-- Fix Nav2 build errors, or better yet make it so Nav2 isn't required as a submodule. I believe I had to add it to get header files for nav2_line_following_controller to work.
-- Dockerize. Ros builds and nodes should run from Docker containers. This is most important for the running on the cars where everything is headless, but less important for the simulator, RViz etc.
-- Strategy for single codebase and multiple different cars. Most of the code should say the same with a simple way to swap parameters for specific cars. The cars will likely have different IMUs, Sensors, etc., that will need to be dealt with.
+1. **Source the Setup File**
+    ```bash
+    source install/setup.bash
+    ```
+
+2. **Launch the Simulation**
+    ```bash
+    ros2 launch sim_car bringup.launch.py
+    ```
+
+3. **Navigate Using RVIZ**
+    Wait for the costmaps to appear in RVIZ, then use the [2D Goal Pose] button in RVIZ to navigate.
+
+## To-Do List
+
+- **Resolve Nav2 Build Errors**
+    Ideally, Nav2 should not be required as a submodule. The current setup was necessary to access header files for the `nav2_line_following_controller`.
+
+- **Implement Docker**
+    ROS builds and nodes should run from Docker containers. This is particularly important for headless car operations, but less so for the simulator and RViz.
+
+- **Develop a Single Codebase Strategy**
+    Most of the code should remain the same, with a simple method to swap parameters for specific cars. Different cars will likely have varying IMUs, Sensors, etc., which will need to be accommodated.
+
