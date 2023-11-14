@@ -31,6 +31,10 @@ Copy this text into /etc/udev/rules.d/99-rplidar-udev.rules to expose lidar on /
 #
 KERNEL=="ttyUSB*", ATTRS{idVendor}=="10c4", ATTRS{idProduct}=="ea60", MODE:="0777", SYMLINK+="rplidar"
 ```
+logout and back in to apply rules, or
+```bash
+sudo udevadm control --reload-rules && sudo udevadm trigger
+```
 
 ## Building
 need to fix this, but for now...
