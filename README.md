@@ -1,4 +1,6 @@
+# Self-Driving RC Car - Ros2 Workspace
 
+This shared Ros2 workspace is a team effort to create self driving RC cars for indoor and outdoor navigations. Our next major goal is to participate in  the [RoboMagellan Competition](http://robogames.net/rules/magellan.php) at [RoboGames 2024](http://robogames.net/index.php).
 
 ## Installing on Desktop
 
