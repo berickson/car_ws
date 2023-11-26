@@ -57,6 +57,10 @@ colcon build --packages-skip nav2_simple_commander nav2_util nav2_behavior_tree
 3. **Navigate Using RVIZ**
     Wait for the costmaps to appear in RVIZ, then use the [2D Goal Pose] button in RVIZ to navigate.
 
+
+## Equipment
+GPS: https://www.amazon.com/Compass-Precision-Receiver-Navigation-Compatible/dp/B08NY9JSZ3
+
 ## To-Do List
 
 - **Resolve Nav2 Build Errors**

@@ -1,10 +1,10 @@
 #include "manual_mode.h"
 #include "Arduino.h"
-#include "servo2.h"
+#include "Servo.h"
 #include "pwm_input.h"
 
-extern Servo2 esc;
-extern Servo2 str;
+extern Servo esc;
+extern Servo str;
 extern PwmInput rx_str;
 extern PwmInput rx_esc;
 

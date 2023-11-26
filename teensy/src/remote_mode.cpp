@@ -1,6 +1,6 @@
 #include "remote_mode.h"
 #include "Arduino.h"
-#include "servo2.h"
+#include "Servo.h"
 #include "pwm_input.h"
 
 
@@ -8,8 +8,8 @@
 
 const int timeout_ms = 1000; // minimum interval to receive commands before ending from timeout
 
-extern Servo2 esc;
-extern Servo2 str;
+extern Servo esc;
+extern Servo str; // todo: why was this ServoS?
 
 RemoteMode::RemoteMode() {
   name = "remote";
@@ -56,8 +56,9 @@ void RemoteMode::command_steer_and_esc(float _str_us, float _esc_us) {
 
 void RemoteMode::update_pulses() {
   if(done) return;
-  str.writeMicrosecondsFloat(str_us);
-  esc.writeMicrosecondsFloat(esc_us);
+  // todo: change back to writeMicrosecondsFloat
+  str.writeMicroseconds(str_us);
+  esc.writeMicroseconds(esc_us);
 
   // char buffer[200];
   // sprintf(buffer, "str_us: in: %f out: %f esc_us: in: %f  out: %f\n", str_us, str.readMicrosecondsFloat(), esc_us, esc.readMicrosecondsFloat());

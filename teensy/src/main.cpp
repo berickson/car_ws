@@ -17,7 +17,8 @@
 
 
 #include "pwm_input.h"
-#include "servo2.h"
+#include "Servo.h" // todo: change back to servo2 to support 100Hz
+//#include "servo2.h"
 #include "motor_encoder.h"
 #include "quadrature_encoder.h"
 #include "task.h"
@@ -69,6 +70,37 @@ const int pin_cell4_sense = A17;
 const int pin_cell0_sense = A18;
 #endif
 
+#if defined(BLUE4_CAR)
+const int pin_mpu_interrupt = 0;
+
+const int pin_motor_a = 1;
+const int pin_motor_b = 2;
+const int pin_motor_c = 3;
+//const int pin_motor_temp = A13;
+
+const int pin_odo_fl_a = 4;
+const int pin_odo_fl_b = 5;
+const int pin_odo_fr_a = 6;
+const int pin_odo_fr_b = 7;
+
+const int pin_str = 8;
+const int pin_esc = 9;
+const int pin_esc_aux = 10;
+
+const int pin_rx_str = 11;
+const int pin_rx_esc = 12;
+
+const int pin_led = 13;
+
+
+const int pin_vbat_sense = A9;
+const int pin_cell0_sense = A4;
+const int pin_cell1_sense = A5;
+const int pin_cell2_sense = A6;
+const int pin_cell3_sense = A7;
+const int pin_cell4_sense = A8;
+#endif
+
 ///////////////////////////////////////////////
 // helpers
 
@@ -84,8 +116,8 @@ PwmInput rx_esc;
 
 RxEvents rx_events;
 
-Servo2 str;
-Servo2 esc;
+Servo str;
+Servo esc;
 
 QuadratureEncoder odo_fl(pin_odo_fl_a, pin_odo_fl_b);
 QuadratureEncoder odo_fr(pin_odo_fr_a, pin_odo_fr_b);
@@ -178,6 +210,23 @@ public:
     sprintf(buffer, "Raw Cells: bat %d cell0: %d cell1: %d cell2: %d cell3: %d cell4: %d", analogRead(pin_vbat_sense), analogRead(pin_cell0_sense), analogRead(pin_cell1_sense), analogRead(pin_cell2_sense), analogRead(pin_cell3_sense), analogRead(pin_cell4_sense));
     nh.loginfo(buffer);
     */
+#elif defined(BLUE4_CAR)
+    v_bat = analogRead(pin_vbat_sense) * 12.47/744;
+    v_cell0 = analogRead(pin_cell0_sense) * scale;
+    v_cell1 = analogRead(pin_cell1_sense)  * 4.161/246;
+    v_cell2 = analogRead(pin_cell2_sense)  * 8.32/497;
+    v_cell3 = analogRead(pin_cell3_sense) * 12.48/744;
+    v_cell4 = analogRead(pin_cell4_sense) * 12.48/744;
+    char buffer[200];
+    Serial.println();
+    // sprintf(buffer, "V Cells: bat %4.3f cell0: %4.3f cell1: %4.3f cell2: %4.3f cell3: %4.3f cell4: %4.3f", v_bat, v_cell0, v_cell1, v_cell2, v_cell3, v_cell4);
+    // Serial.println(buffer);
+    sprintf(buffer, "Raw Cells: bat %d cell0: %d cell1: %d cell2: %d cell3: %d cell4: %d", analogRead(pin_vbat_sense), analogRead(pin_cell0_sense), analogRead(pin_cell1_sense), analogRead(pin_cell2_sense), analogRead(pin_cell3_sense), analogRead(pin_cell4_sense));
+    Serial.println();
+    Serial.println(buffer);
+    Serial.println();
+    Serial.println();
+    delay(1);
 #elif defined(ORANGE_CAR)
     // constants below based on 220k and 1M resistor, 1023 steps and 3.3 reference voltage
     v_bat = analogRead(pin_vbat_sense) * ((3.3/1023.) / 220.)*(220.+1000.);
@@ -511,6 +560,8 @@ void maintain_uros_connection() {
 
 void setup() {
   Serial.begin(921600);
+  delay(1000);
+  Serial.println("setup");
 
   set_microros_serial_transports(Serial);
 
@@ -551,9 +602,18 @@ void setup() {
   modes.begin();
 
   Wire.begin();
+  return;
   mpu9150.setup();
 
 #if defined(BLUE_CAR)
+  mpu9150.ax_bias = 0;
+  mpu9150.ay_bias = 0;
+  mpu9150.az_bias = 7893.51;
+  mpu9150.rest_a_mag =  7893.51;
+  mpu9150.zero_adjust = Quaternion(0.707, 0.024, -0.024, 0.707);
+  mpu9150.yaw_slope_rads_per_ms  = -0.0000000680;
+  mpu9150.yaw_actual_per_raw = 1;
+#elif defined(BLUE4_CAR)
   mpu9150.ax_bias = 0;
   mpu9150.ay_bias = 0;
   mpu9150.az_bias = 7893.51;
@@ -589,7 +649,11 @@ void loop() {
     if(!rx_events.current.equals(RxEvent('C','N'))) {
       modes.set_event("non-neutral");
     }
-  } 
+  }
+
+  if(every_n_ms(last_loop_ms, loop_ms, 10000)) {
+    Serial.println("10s");
+  }
 
   maintain_uros_connection();
 
@@ -600,9 +664,9 @@ void loop() {
   // mpu9150 execute takes about 3ms when there is an interrupt,
   // and this messes up the perfect 10ms update timings.  Running it at
   // 2ms offset from the updates keeps it from interfering
-  if(every_n_ms(last_loop_ms, loop_ms, 10, 2)) {
-    mpu9150.execute();
-  }
+  // if(every_n_ms(last_loop_ms, loop_ms, 10, 2)) {
+  //   mpu9150.execute();
+  // }
 
   if(every_n_ms(last_loop_ms, loop_ms, 10)) {
 
