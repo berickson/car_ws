@@ -73,22 +73,24 @@ const int pin_cell0_sense = A18;
 #if defined(BLUE4_CAR)
 const int pin_mpu_interrupt = 0;
 
-const int pin_motor_a = 1;
-const int pin_motor_b = 2;
-const int pin_motor_c = 3;
 //const int pin_motor_temp = A13;
 
-const int pin_odo_fl_a = 4;
-const int pin_odo_fl_b = 5;
-const int pin_odo_fr_a = 6;
-const int pin_odo_fr_b = 7;
+const int pin_odo_fl_a = 2;
+const int pin_odo_fl_b = 3;
+const int pin_odo_fr_a = 4;
+const int pin_odo_fr_b = 5;
+
+const int pin_rx_str = 6;
+const int pin_rx_esc = 7;
 
 const int pin_str = 8;
 const int pin_esc = 9;
-const int pin_esc_aux = 10;
+//const int pin_esc_aux = 10;
 
-const int pin_rx_str = 11;
-const int pin_rx_esc = 12;
+
+const int pin_motor_a = 10;
+const int pin_motor_b = 11;
+const int pin_motor_c = 12;
 
 const int pin_led = 13;
 
