@@ -10,6 +10,8 @@
 
 #include <tuple> // for std::ignore
 
+#include "nmea_msgs/msg/sentence.h"
+
 #include "car_msgs/msg/update.h"
 #include "car_msgs/msg/rc_command.h"
 #include "std_srvs/srv/empty.h"
@@ -130,6 +132,8 @@ Blinker blinker;
 
 float cell_voltages[4];
 
+String nmea_sentence;
+
 ///////////////////////////////////////////////
 // Interrupt handlers
 
@@ -213,6 +217,7 @@ public:
     nh.loginfo(buffer);
     */
 #elif defined(BLUE4_CAR)
+  if(0) {
     v_bat = analogRead(pin_vbat_sense) * 12.47/744;
     v_cell0 = analogRead(pin_cell0_sense) * scale;
     v_cell1 = analogRead(pin_cell1_sense)  * 4.161/246;
@@ -229,6 +234,7 @@ public:
     Serial.println();
     Serial.println();
     delay(1);
+  }
 #elif defined(ORANGE_CAR)
     // constants below based on 220k and 1M resistor, 1023 steps and 3.3 reference voltage
     v_bat = analogRead(pin_vbat_sense) * ((3.3/1023.) / 220.)*(220.+1000.);
@@ -286,12 +292,14 @@ rclc_executor_t executor;
 rcl_allocator_t allocator;
 rcl_publisher_t update_publisher;
 rcl_publisher_t battery_state_publisher;
+rcl_publisher_t nmea_sentence_publisher;
 rcl_subscription_t rc_command_subscription;
 rcl_service_t enable_rc_mode_service;
 rcl_service_t disable_rc_mode_service;
 car_msgs__msg__Update update_message;
 car_msgs__msg__RcCommand rc_command_message;
 sensor_msgs__msg__BatteryState battery_state_message;
+nmea_msgs__msg__Sentence nmea_sentence_message;
 std_srvs__srv__Empty_Request empty_request_message;
 std_srvs__srv__Empty_Response empty_response_message;
 
@@ -382,9 +390,23 @@ void publish_update_message() {
     std::ignore = rcl_publish(&update_publisher, &update_message, NULL);
 }
 
+void publish_nmea_sentence_message() {
+  static char frame[] = "base_link";
+  nmea_sentence_message.header.stamp.nanosec = rmw_uros_epoch_nanos() | 0xffff;
+  nmea_sentence_message.header.stamp.sec = rmw_uros_epoch_millis() / 1000;
+  nmea_sentence_message.header.frame_id.capacity = sizeof(frame);
+  nmea_sentence_message.header.frame_id.size = sizeof(frame);
+  nmea_sentence_message.header.frame_id.data = frame;
+  nmea_sentence_message.sentence.capacity = nmea_sentence.length();
+  nmea_sentence_message.sentence.size = nmea_sentence.length();
+  nmea_sentence_message.sentence.data = (char *) nmea_sentence.c_str();
+
+  std::ignore = rcl_publish(&nmea_sentence_publisher, &nmea_sentence_message, NULL);
+}
+
 void publish_battery_state_message() {
   static char frame[] = "base_link";
-  static char location[] = "blue-crash4";
+  static char location[] = "car";
   battery_state_message.header.stamp.nanosec = rmw_uros_epoch_nanos() | 0xffff;
   battery_state_message.header.stamp.sec = rmw_uros_epoch_millis() / 1000;
   battery_state_message.header.frame_id.capacity = sizeof(frame);
@@ -451,6 +473,13 @@ bool create_uros_entities()
     ROSIDL_GET_MSG_TYPE_SUPPORT(car_msgs, msg, Update),
     "car/update");
   
+  rclc_publisher_init_default(
+    &nmea_sentence_publisher,
+    &node,
+    ROSIDL_GET_MSG_TYPE_SUPPORT(nmea_msgs, msg, Sentence),
+    "car/gps_raw"
+  );
+
   rclc_publisher_init_best_effort(
     &battery_state_publisher,
     &node,
@@ -520,6 +549,7 @@ void destroy_uros_entities()
   
   std::ignore = rcl_publisher_fini(&update_publisher, &node);
   std::ignore = rcl_publisher_fini(&battery_state_publisher, &node);
+  std::ignore = rcl_publisher_fini(&nmea_sentence_publisher, &node);
   std::ignore = rcl_timer_fini(&timer);
   std::ignore = rclc_executor_fini(&executor);
   std::ignore = rcl_node_fini(&node);
@@ -562,6 +592,7 @@ void maintain_uros_connection() {
 
 void setup() {
   Serial.begin(921600);
+  Serial3.begin(38400);
   delay(1000);
   Serial.println("setup");
 
@@ -653,14 +684,27 @@ void loop() {
     }
   }
 
-  if(every_n_ms(last_loop_ms, loop_ms, 10000)) {
-    Serial.println("10s");
-  }
-
   maintain_uros_connection();
 
   if(every_n_ms(last_loop_ms, loop_ms, 10)) {
     modes.execute();
+  }
+
+  while(Serial3.available()) {
+    char c = Serial3.read();
+    if(c=='\r') {
+      continue;
+    }
+    if(c=='\n') {
+      // send nmea_sentence
+      publish_nmea_sentence_message();
+      nmea_sentence = "";
+      continue;
+    }
+    nmea_sentence.append(c);
+    if(nmea_sentence.length() > 300) {
+      nmea_sentence = "";
+    }
   }
 
   // mpu9150 execute takes about 3ms when there is an interrupt,

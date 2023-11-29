@@ -18,7 +18,13 @@ def generate_launch_description():
         PythonLaunchDescriptionSource('lidar_launch.py')
     )
 
+    nmea_navsat_driver = Node(
+      package="nmea_navsat_driver",
+      executable="nmea_topic_driver",
+      arguments="--ros-args -r nmea_sentence:=car/gps_raw".split())
+
     ld.add_action(micro_ros_agent)
     ld.add_action(lidar_launch)
+    ld.add_action(nmea_navsat_driver)
 
     return ld
