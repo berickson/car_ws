@@ -477,7 +477,7 @@ bool create_uros_entities()
     &nmea_sentence_publisher,
     &node,
     ROSIDL_GET_MSG_TYPE_SUPPORT(nmea_msgs, msg, Sentence),
-    "car/gps_raw"
+    "car/gps/nmea_sentence"
   );
 
   rclc_publisher_init_best_effort(
