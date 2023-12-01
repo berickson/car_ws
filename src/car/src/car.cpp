@@ -256,7 +256,7 @@ void Car::car_update_topic_callback(const car_msgs::msg::Update::SharedPtr d){
 
     front_left_wheel_.update_from_sensor(d->us, d->odo_fl_a, d->odo_fl_a_us,
                                         d->odo_fl_b, d->odo_fl_b_us);
-    motor_.update_from_sensor(d->us, d->spur_odo, d->spur_us);
+    motor_.update_from_sensor(d->us, d->motor_odo, d->motor_us);
     front_right_wheel_.update_from_sensor(d->us, d->odo_fr_a, d->odo_fr_a_us, 
                                          d->odo_fr_b, d->odo_fr_b_us);
 

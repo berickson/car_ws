@@ -73,7 +73,7 @@ const int pin_cell0_sense = A18;
 #endif
 
 #if defined(BLUE4_CAR)
-const int pin_mpu_interrupt = 0;
+const int pin_mpu_interrupt = 20;
 
 //const int pin_motor_temp = A13;
 
@@ -98,11 +98,11 @@ const int pin_led = 13;
 
 
 const int pin_vbat_sense = A9;
-const int pin_cell0_sense = A4;
-const int pin_cell1_sense = A5;
-const int pin_cell2_sense = A6;
-const int pin_cell3_sense = A7;
-const int pin_cell4_sense = A8;
+const int pin_cell0_sense = A9;
+const int pin_cell1_sense = A9;
+const int pin_cell2_sense = A9;
+const int pin_cell3_sense = A9;
+const int pin_cell4_sense = A9;
 #endif
 
 ///////////////////////////////////////////////
@@ -357,8 +357,8 @@ void publish_update_message() {
     update_message.rx_str = rx_str.pulse_us();
 
     noInterrupts();
-    update_message.spur_us = motor.last_change_us;
-    update_message.spur_odo = motor.odometer;
+    update_message.motor_us = motor.last_change_us;
+    update_message.motor_odo = motor.odometer;
     interrupts();
 
     noInterrupts();
@@ -635,7 +635,7 @@ void setup() {
   modes.begin();
 
   Wire.begin();
-  return;
+
   mpu9150.setup();
 
 #if defined(BLUE_CAR)
@@ -710,9 +710,9 @@ void loop() {
   // mpu9150 execute takes about 3ms when there is an interrupt,
   // and this messes up the perfect 10ms update timings.  Running it at
   // 2ms offset from the updates keeps it from interfering
-  // if(every_n_ms(last_loop_ms, loop_ms, 10, 2)) {
-  //   mpu9150.execute();
-  // }
+  if(every_n_ms(last_loop_ms, loop_ms, 10, 2)) {
+     mpu9150.execute();
+  }
 
   if(every_n_ms(last_loop_ms, loop_ms, 10)) {
 

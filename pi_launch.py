@@ -26,7 +26,7 @@ def generate_launch_description():
       )
 
     ld.add_action(micro_ros_agent)
-    #ld.add_action(lidar_launch)
+    # ld.add_action(lidar_launch)
     ld.add_action(nmea_navsat_driver)
 
     return ld

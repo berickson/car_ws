@@ -12,8 +12,8 @@ float32 rx_esc
 float32 ax
 float32 ay
 float32 az
-uint32 spur_us
-int32 spur_odo
+uint32 motor_us
+int32 motor_odo
 int32 odo_fl_a
 uint32 odo_fl_a_us
 int32 odo_fl_b

@@ -37,14 +37,14 @@ def generate_launch_description():
         package="foxglove_bridge",
         executable="foxglove_bridge")
     
-    web_bridge = IncludeLaunchDescription(
-        XMLLaunchDescriptionSource(
-            os.path.join(
-                get_package_share_directory("rosbridge_server"),
-                "launch/rosbridge_websocket_launch.xml",
-            )
-        )
-    )
+    # web_bridge = IncludeLaunchDescription(
+    #     XMLLaunchDescriptionSource(
+    #         os.path.join(
+    #             get_package_share_directory("rosbridge_server"),
+    #             "launch/rosbridge_websocket_launch.xml",
+    #         )
+    #     )
+    # )
 
 
 
@@ -53,6 +53,6 @@ def generate_launch_description():
     #ld.add_action(node_tf_base_link_to_chassis_link)
     ld.add_action(car)
     ld.add_action(foxglove_bridge)
-    ld.add_action(web_bridge)
+    #ld.add_action(web_bridge)
 
     return ld

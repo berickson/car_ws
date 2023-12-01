@@ -80,7 +80,7 @@ void Mpu9150::enable_interrupts(int interrupt_pin) {
 
 void Mpu9150::setup() {
     rest_a_mag = 7645.45;
-    set_zero_orientation( Quaternion(-0.69, 0.000,0.73,-0.00) );
+    set_zero_orientation( Quaternion(0.707, 0.707, 0.0, 0.0));
     ax_bias = 0.0;
     ay_bias = 0.0;
     az_bias = 0.0;
@@ -189,10 +189,10 @@ void Mpu9150::execute(){
     mpu.dmpGetQuaternion(&qraw, fifoBuffer);
     mpu.dmpGetGravity(&graw, &qraw);
     mpu.dmpGetAccel(&araw, fifoBuffer);
-    a = araw.getRotated(&zero_adjust);
+    a = araw; //araw.getRotated(&zero_adjust);
 
-    q = qraw.getProduct(zero_adjust.getConjugate());
-    gravity= graw.getRotated(&zero_adjust);
+    q = qraw; //zero_adjust.getProduct(qraw);
+    gravity= graw; //graw.getRotated(&zero_adjust);
 
     const float g = 9.80665f;
 
@@ -203,6 +203,7 @@ void Mpu9150::execute(){
     temperature = mpu.getTemperature();
 
     float last_yaw = yaw_pitch_roll[0];
+    //mpu.dmpGetYawPitchRoll(yaw_pitch_roll, &q, &gravity);
     mpu.dmpGetYawPitchRoll(yaw_pitch_roll, &q, &gravity);
 
     if(at_rest_calibrating) {
