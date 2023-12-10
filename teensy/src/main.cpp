@@ -98,11 +98,7 @@ const int pin_led = 13;
 
 
 const int pin_vbat_sense = A9;
-const int pin_cell0_sense = A9;
-const int pin_cell1_sense = A9;
-const int pin_cell2_sense = A9;
-const int pin_cell3_sense = A9;
-const int pin_cell4_sense = A9;
+
 #endif
 
 ///////////////////////////////////////////////
@@ -217,24 +213,7 @@ public:
     nh.loginfo(buffer);
     */
 #elif defined(BLUE4_CAR)
-  if(0) {
-    v_bat = analogRead(pin_vbat_sense) * 12.47/744;
-    v_cell0 = analogRead(pin_cell0_sense) * scale;
-    v_cell1 = analogRead(pin_cell1_sense)  * 4.161/246;
-    v_cell2 = analogRead(pin_cell2_sense)  * 8.32/497;
-    v_cell3 = analogRead(pin_cell3_sense) * 12.48/744;
-    v_cell4 = analogRead(pin_cell4_sense) * 12.48/744;
-    char buffer[200];
-    Serial.println();
-    // sprintf(buffer, "V Cells: bat %4.3f cell0: %4.3f cell1: %4.3f cell2: %4.3f cell3: %4.3f cell4: %4.3f", v_bat, v_cell0, v_cell1, v_cell2, v_cell3, v_cell4);
-    // Serial.println(buffer);
-    sprintf(buffer, "Raw Cells: bat %d cell0: %d cell1: %d cell2: %d cell3: %d cell4: %d", analogRead(pin_vbat_sense), analogRead(pin_cell0_sense), analogRead(pin_cell1_sense), analogRead(pin_cell2_sense), analogRead(pin_cell3_sense), analogRead(pin_cell4_sense));
-    Serial.println();
-    Serial.println(buffer);
-    Serial.println();
-    Serial.println();
-    delay(1);
-  }
+    v_bat = analogRead(pin_vbat_sense) * 11.99/777.0;
 #elif defined(ORANGE_CAR)
     // constants below based on 220k and 1M resistor, 1023 steps and 3.3 reference voltage
     v_bat = analogRead(pin_vbat_sense) * ((3.3/1023.) / 220.)*(220.+1000.);
@@ -445,7 +424,7 @@ void publish_battery_state_message() {
     float cell_average = battery_sensor.v_bat / battery_state_message.cell_voltage.size;
     battery_state_message.percentage = constrain(map(cell_average,3.5,4.2,0.0,1.0),0.0,1.0);
   } else {
-    battery_state_message.percentage = NAN;
+    battery_state_message.percentage = battery_sensor.v_bat/12.6;
   }
 
   std::ignore = rcl_publish(&battery_state_publisher, &battery_state_message, NULL);
@@ -480,7 +459,7 @@ bool create_uros_entities()
     "car/gps/nmea_sentence"
   );
 
-  rclc_publisher_init_best_effort(
+  rclc_publisher_init_default(
     &battery_state_publisher,
     &node,
     ROSIDL_GET_MSG_TYPE_SUPPORT(sensor_msgs, msg, BatteryState),
@@ -651,7 +630,7 @@ void setup() {
   mpu9150.ay_bias = 0;
   mpu9150.az_bias = 7893.51;
   mpu9150.rest_a_mag =  7893.51;
-  mpu9150.zero_adjust = Quaternion(0.707, 0.024, -0.024, 0.707);
+  mpu9150.zero_adjust = Quaternion(1.0, 0.0, 0.0, 0.0);
   mpu9150.yaw_slope_rads_per_ms  = -0.0000000680;
   mpu9150.yaw_actual_per_raw = 1;
 #elif defined(ORANGE_CAR)

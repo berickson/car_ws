@@ -12,8 +12,6 @@ def generate_launch_description():
         executable="micro_ros_agent",
         arguments="serial --dev /dev/ttyACM0 -b921600".split())
 
-
-
     lidar_launch = IncludeLaunchDescription(
         PythonLaunchDescriptionSource('lidar_launch.py')
     )
@@ -22,11 +20,19 @@ def generate_launch_description():
       namespace="car/gps",
       package="nmea_navsat_driver",
       executable="nmea_topic_driver",
-      #arguments="--ros-args -r nmea_sentence:=/car/gps_raw".split()
       )
 
+    car = Node(package="car",
+            executable="car")
+
+    foxglove_bridge = Node(
+        package="foxglove_bridge",
+        executable="foxglove_bridge")
+
     ld.add_action(micro_ros_agent)
-    # ld.add_action(lidar_launch)
+    ld.add_action(lidar_launch)
     ld.add_action(nmea_navsat_driver)
+    ld.add_action(car)
+    ld.add_action(foxglove_bridge)
 
     return ld
