@@ -96,10 +96,30 @@ const int pin_motor_c = 12;
 
 const int pin_led = 13;
 
+const int pin_vbat_sense = A9;
+
+#endif
+
+#if defined(SETH_CAR)
+const int pin_mpu_interrupt = 20;
+
+const int pin_odo_fl_a = 2;
+const int pin_odo_fl_b = 3;
+const int pin_odo_fr_a = 4;
+const int pin_odo_fr_b = 5;
+
+const int pin_rx_str = 6;
+const int pin_rx_esc = 7;
+
+const int pin_str = 8;
+const int pin_esc = 9;
+
+const int pin_led = 13;
 
 const int pin_vbat_sense = A9;
 
 #endif
+
 
 ///////////////////////////////////////////////
 // helpers
@@ -122,7 +142,9 @@ Servo esc;
 QuadratureEncoder odo_fl(pin_odo_fl_a, pin_odo_fl_b);
 QuadratureEncoder odo_fr(pin_odo_fr_a, pin_odo_fr_b);
 
+#ifdef HAS_MOTOR_ODOM
 MotorEncoder motor(pin_motor_a, pin_motor_b, pin_motor_c);
+#endif
 
 Blinker blinker;
 
@@ -157,6 +179,7 @@ void odo_fr_b_changed() {
   odo_fr.sensor_b_changed();
 }
 
+#ifdef HAS_MOTOR_ODOM
 void motor_a_changed() {
   motor.on_a_change();
 }
@@ -168,6 +191,7 @@ void motor_b_changed() {
 void motor_c_changed() {
   motor.on_c_change();
 }
+#endif
 
 ///////////////////////////////////////////////
 // Misc Code
@@ -214,6 +238,8 @@ public:
     */
 #elif defined(BLUE4_CAR)
     v_bat = analogRead(pin_vbat_sense) * 11.99/777.0;
+#elif defined(SETH_CAR)
+    v_bat = analogRead(pin_vbat_sense) * 11.99/777.0 * 8.0 / 3.84;
 #elif defined(ORANGE_CAR)
     // constants below based on 220k and 1M resistor, 1023 steps and 3.3 reference voltage
     v_bat = analogRead(pin_vbat_sense) * ((3.3/1023.) / 220.)*(220.+1000.);
@@ -336,8 +362,10 @@ void publish_update_message() {
     update_message.rx_str = rx_str.pulse_us();
 
     noInterrupts();
+  #ifdef HAS_MOTOR_ODOM
     update_message.motor_us = motor.last_change_us;
     update_message.motor_odo = motor.odometer;
+  #endif
     interrupts();
 
     noInterrupts();
@@ -589,6 +617,7 @@ void setup() {
   attachInterrupt(pin_rx_str, rx_str_handler, CHANGE);
   attachInterrupt(pin_rx_esc, rx_esc_handler, CHANGE);
 
+#ifdef HAS_MOTOR_ODOM
   pinMode(pin_motor_a, INPUT);
   pinMode(pin_motor_b, INPUT);
   pinMode(pin_motor_c, INPUT);
@@ -596,7 +625,7 @@ void setup() {
   attachInterrupt(pin_motor_a, motor_a_changed, CHANGE);
   attachInterrupt(pin_motor_b, motor_b_changed, CHANGE);
   attachInterrupt(pin_motor_c, motor_c_changed, CHANGE);
-
+#endif
   pinMode(pin_odo_fl_a, INPUT);
   pinMode(pin_odo_fl_b, INPUT);
   pinMode(pin_odo_fr_a, INPUT);
@@ -626,6 +655,15 @@ void setup() {
   mpu9150.yaw_slope_rads_per_ms  = -0.0000000680;
   mpu9150.yaw_actual_per_raw = 1;
 #elif defined(BLUE4_CAR)
+#define HAS_MOTOR_ODOM
+  mpu9150.ax_bias = 0;
+  mpu9150.ay_bias = 0;
+  mpu9150.az_bias = 7893.51;
+  mpu9150.rest_a_mag =  7893.51;
+  mpu9150.zero_adjust = Quaternion(1.0, 0.0, 0.0, 0.0);
+  mpu9150.yaw_slope_rads_per_ms  = -0.0000000680;
+  mpu9150.yaw_actual_per_raw = 1;
+#elif defined(SETH_CAR)
   mpu9150.ax_bias = 0;
   mpu9150.ay_bias = 0;
   mpu9150.az_bias = 7893.51;
