@@ -44,35 +44,6 @@
 #include "mpu9150.h"
 
 #if defined(BLUE_CAR)
-const int pin_led = 13;
-const int pin_motor_a = 14;
-const int pin_motor_b = 12;
-const int pin_motor_c = 11;
-//const int pin_motor_temp = A13;
-
-const int pin_odo_fl_a = 23;
-const int pin_odo_fl_b = 22;
-const int pin_odo_fr_a = 21;
-const int pin_odo_fr_b = 20;
-
-const int pin_str = 26;
-const int pin_esc = 27;
-const int pin_esc_aux = 15;
-
-const int pin_rx_str = 25;
-const int pin_rx_esc = 24;
-
-const int pin_mpu_interrupt = 17;
-
-const int pin_vbat_sense = A13;
-const int pin_cell1_sense = A14;
-const int pin_cell2_sense = A15;
-const int pin_cell3_sense = A16;
-const int pin_cell4_sense = A17;
-const int pin_cell0_sense = A18;
-#endif
-
-#if defined(BLUE4_CAR)
 const int pin_mpu_interrupt = 20;
 
 //const int pin_motor_temp = A13;
@@ -221,25 +192,9 @@ public:
 
   void execute() {
 #if defined(BLUE_CAR)
-    v_bat = analogRead(pin_vbat_sense) * 12.47/744;
-    v_cell0 = analogRead(pin_cell0_sense) * scale;
-    v_cell1 = analogRead(pin_cell1_sense)  * 4.161/246;
-    v_cell2 = analogRead(pin_cell2_sense)  * 8.32/497;
-    v_cell3 = analogRead(pin_cell3_sense) * 12.48/744;
-    v_cell4 = analogRead(pin_cell4_sense) * 12.48/744;
-
-    /* 
-    // calibration logging
-    char buffer[200];
-    sprintf(buffer, "V Cells: bat %4.3f cell0: %4.3f cell1: %4.3f cell2: %4.3f cell3: %4.3f cell4: %4.3f", v_bat, v_cell0, v_cell1, v_cell2, v_cell3, v_cell4);
-    nh.loginfo(buffer);
-    sprintf(buffer, "Raw Cells: bat %d cell0: %d cell1: %d cell2: %d cell3: %d cell4: %d", analogRead(pin_vbat_sense), analogRead(pin_cell0_sense), analogRead(pin_cell1_sense), analogRead(pin_cell2_sense), analogRead(pin_cell3_sense), analogRead(pin_cell4_sense));
-    nh.loginfo(buffer);
-    */
-#elif defined(BLUE4_CAR)
     v_bat = analogRead(pin_vbat_sense) * 11.99/777.0;
 #elif defined(SETH_CAR)
-    v_bat = analogRead(pin_vbat_sense) * 11.99/777.0 * 8.0 / 3.84;
+    v_bat = analogRead(pin_vbat_sense) * 0.0303665;
 #elif defined(ORANGE_CAR)
     // constants below based on 220k and 1M resistor, 1023 steps and 3.3 reference voltage
     v_bat = analogRead(pin_vbat_sense) * ((3.3/1023.) / 220.)*(220.+1000.);
@@ -316,8 +271,9 @@ enum uros_states {
   AGENT_AVAILABLE,
   AGENT_CONNECTED,
   AGENT_DISCONNECTED
-} uros_state = WAITING_AGENT;
-;
+};
+uros_states uros_state = WAITING_AGENT;
+
 
 void rc_command_received(const void * msg) {
   // Cast received message to used type
@@ -647,14 +603,6 @@ void setup() {
   mpu9150.setup();
 
 #if defined(BLUE_CAR)
-  mpu9150.ax_bias = 0;
-  mpu9150.ay_bias = 0;
-  mpu9150.az_bias = 7893.51;
-  mpu9150.rest_a_mag =  7893.51;
-  mpu9150.zero_adjust = Quaternion(0.707, 0.024, -0.024, 0.707);
-  mpu9150.yaw_slope_rads_per_ms  = -0.0000000680;
-  mpu9150.yaw_actual_per_raw = 1;
-#elif defined(BLUE4_CAR)
 #define HAS_MOTOR_ODOM
   mpu9150.ax_bias = 0;
   mpu9150.ay_bias = 0;
