@@ -19,8 +19,7 @@
 
 
 #include "pwm_input.h"
-#include "Servo.h" // todo: change back to servo2 to support 100Hz
-//#include "servo2.h"
+#include "Servo.h"
 #include "motor_encoder.h"
 #include "quadrature_encoder.h"
 #include "task.h"
@@ -44,6 +43,7 @@
 #include "mpu9150.h"
 
 #if defined(BLUE_CAR)
+#define HAS_MOTOR_ODOM
 const int pin_mpu_interrupt = 20;
 
 //const int pin_motor_temp = A13;
