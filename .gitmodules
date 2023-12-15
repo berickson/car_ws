@@ -17,6 +17,3 @@
 [submodule "src/nav2_line_following_controller"]
 	path = src/nav2_line_following_controller
 	url = git@github.com:berickson/nav2_line_following_controller.git
-[submodule "src/navigation2"]
-	path = src/navigation2
-	url = git@github.com:berickson/navigation2.git
