@@ -128,7 +128,8 @@ class Car : public rclcpp::Node
     // todo: get from parameter server
     const float front_meters_per_odometer_tick = 0.002528;
     const float rear_meters_per_odometer_tick = 0.00146;
-    const float motor_meters_per_odometer_tick = 0.00292;
+    // const float motor_meters_per_odometer_tick = 0.00292; Blue
+    const float motor_meters_per_odometer_tick = 0.00176; // Seth
     const float front_wheelbase_width_in_meters = 0.2413;
     const float rear_wheelbase_width_in_meters = 0.2667;
     const float wheelbase_length_in_meters = 0.33655;

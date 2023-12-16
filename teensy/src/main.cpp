@@ -72,6 +72,7 @@ const int pin_vbat_sense = A9;
 #endif
 
 #if defined(SETH_CAR)
+#define HAS_MOTOR_ODOM
 const int pin_mpu_interrupt = 20;
 
 const int pin_odo_fl_a = 2;
@@ -84,6 +85,11 @@ const int pin_rx_esc = 7;
 
 const int pin_str = 8;
 const int pin_esc = 9;
+
+const int pin_motor_c = 10;
+const int pin_motor_b = 11;
+const int pin_motor_a = 12;
+
 
 const int pin_led = 13;
 
