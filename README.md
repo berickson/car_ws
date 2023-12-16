@@ -37,25 +37,9 @@ This shared Ros2 workspace is a team effort to create self driving RC cars for i
     ```
 
 ## Building the Project
-need to fix this, but for now...
 ```
-colcon build --packages-skip nav2_simple_commander nav2_util nav2_behavior_tree
+colcon build
 ```
-
-## Running the Simulation
-
-1. **Source the Setup File**
-    ```bash
-    source install/setup.bash
-    ```
-
-2. **Launch the Simulation**
-    ```bash
-    ros2 launch sim_car bringup.launch.py
-    ```
-
-3. **Navigate Using RVIZ**
-    Wait for the costmaps to appear in RVIZ, then use the [2D Goal Pose] button in RVIZ to navigate.
 
 
 ## Equipment
