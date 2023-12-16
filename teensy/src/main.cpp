@@ -194,7 +194,7 @@ public:
 #if defined(BLUE_CAR)
     v_bat = analogRead(pin_vbat_sense) * 11.99/777.0;
 #elif defined(SETH_CAR)
-    v_bat = analogRead(pin_vbat_sense) * 0.0303665;
+    v_bat = analogRead(pin_vbat_sense) * 11.64/770;
 #elif defined(ORANGE_CAR)
     // constants below based on 220k and 1M resistor, 1023 steps and 3.3 reference voltage
     v_bat = analogRead(pin_vbat_sense) * ((3.3/1023.) / 220.)*(220.+1000.);
