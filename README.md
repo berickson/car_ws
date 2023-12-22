@@ -35,6 +35,13 @@ This shared Ros2 workspace is a team effort to create self driving RC cars for i
     ```bash
     sudo udevadm control --reload-rules && sudo udevadm trigger
     ```
+6. ** Prepare udev rules for Oak-D**
+    ```
+    echo 'SUBSYSTEM=="usb", ATTRS{idVendor}=="03e7", MODE="0666"' | sudo tee /etc/udev/rules.d/80-movidius.rules
+    sudo udevadm control --reload-rules && sudo udevadm trigger
+    ```
+    Reboot or unplug and plug camera for rules to take effect
+
 
 ## Building the Project
 ```
