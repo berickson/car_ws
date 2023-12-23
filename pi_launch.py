@@ -1,3 +1,7 @@
+import os
+
+from ament_index_python.packages import get_package_share_directory
+
 from launch import LaunchDescription
 from launch_ros.actions import Node
 from launch.actions import IncludeLaunchDescription
@@ -29,10 +33,17 @@ def generate_launch_description():
         package="foxglove_bridge",
         executable="foxglove_bridge")
 
+    # launch conde_detector.launch.py from cone_detector package
+    cone_detector = IncludeLaunchDescription(
+        PythonLaunchDescriptionSource([os.path.join(
+            get_package_share_directory("cone_detector"), "launch"), 
+            "/cone_detector.launch.py"]))
+
     ld.add_action(micro_ros_agent)
     ld.add_action(lidar_launch)
     ld.add_action(nmea_navsat_driver)
     ld.add_action(car)
     ld.add_action(foxglove_bridge)
+    ld.add_action(cone_detector)
 
     return ld
