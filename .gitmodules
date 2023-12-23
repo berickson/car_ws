@@ -17,3 +17,6 @@
 [submodule "src/nav2_line_following_controller"]
 	path = src/nav2_line_following_controller
 	url = git@github.com:berickson/nav2_line_following_controller.git
+[submodule "src/detection_visualizer"]
+	path = src/detection_visualizer
+	url = https://github.com/ros2/detection_visualizer
