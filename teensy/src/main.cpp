@@ -679,9 +679,6 @@ void loop() {
     if(! (c.steer == 'C' && c.aux=='N')) {
       modes.set_event("non-neutral");
     }
-    if(c.steer == 'L') {
-      modes.set_event("auto");
-    }
     if(c.aux != last_hoa_mode) {
       if(c.aux == 'H') {
         modes.set_event("manual");
