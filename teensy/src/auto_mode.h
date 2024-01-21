@@ -2,9 +2,9 @@
 
 #include "task.h"
 
-class RemoteMode : public Task {
+class AutoMode : public Task {
 public:
-  RemoteMode();
+  AutoMode();
   virtual void begin();
   virtual void end();
   virtual void execute();

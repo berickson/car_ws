@@ -1,4 +1,4 @@
-#include "remote_mode.h"
+#include "auto_mode.h"
 #include "Arduino.h"
 #include "Servo.h"
 #include "pwm_input.h"
@@ -11,12 +11,12 @@ const int timeout_ms = 1000; // minimum interval to receive commands before endi
 extern Servo esc;
 extern Servo str; // todo: why was this ServoS?
 
-RemoteMode::RemoteMode() {
-  name = "remote";
+AutoMode::AutoMode() {
+  name = "auto";
 }
 
-void RemoteMode::begin() {
-  log(LOG_INFO, "begin of remote mode");
+void AutoMode::begin() {
+  log(LOG_INFO, "begin of auto mode");
   is_active = true;
   last_command_ms = millis();
   str_us = 1500;
@@ -24,8 +24,8 @@ void RemoteMode::begin() {
   done = false;
 }
 
-void RemoteMode::end() {
-    Serial.println("end of remote mode");
+void AutoMode::end() {
+    Serial.println("end of auto mode");
     str_us = 1500;
     esc_us = 1500;
     update_pulses();
@@ -33,7 +33,7 @@ void RemoteMode::end() {
     is_active = false;
 }
 
-void RemoteMode::execute() {
+void AutoMode::execute() {
   // of no recent commands, will set throttle to neutral
   bool timed_out = (millis() - last_command_ms > timeout_ms);
   if(timed_out) {
@@ -42,9 +42,9 @@ void RemoteMode::execute() {
   update_pulses();
 }
 
-void RemoteMode::command_steer_and_esc(float _str_us, float _esc_us) {
+void AutoMode::command_steer_and_esc(float _str_us, float _esc_us) {
   if (!is_active) {
-    Serial.println("RemoteMode::command_steer_and_esc called when mode inactive, ignoring");
+    Serial.println("AutoMode::command_steer_and_esc called when mode inactive, ignoring");
     return;
   }
   last_command_ms = millis();
@@ -54,7 +54,7 @@ void RemoteMode::command_steer_and_esc(float _str_us, float _esc_us) {
 }
 
 
-void RemoteMode::update_pulses() {
+void AutoMode::update_pulses() {
   if(done) return;
   // todo: change back to writeMicrosecondsFloat
   str.writeMicroseconds(str_us);

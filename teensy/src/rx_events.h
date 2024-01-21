@@ -12,13 +12,15 @@ public:
 
   // number of different readings before a new event is triggered
   // this is used to de-bounce the system
-  const int change_count_threshold = 5;
+  const int change_count_threshold = 1;
   int change_count = 0;
 
-  void process_pulses(int steer_us, int speed_us);
+  void process_pulses(int steer_us, int speed_us, int aux_us);
   char steer_code(int steer_us);
 
   char speed_code(int speed_us);
+
+  char aux_code(int aux_us);
 
   // returns true if new event received since last call
   bool get_event();

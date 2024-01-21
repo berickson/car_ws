@@ -18,7 +18,7 @@ def generate_launch_description():
     inverted = LaunchConfiguration('inverted', default='true')
     angle_compensate = LaunchConfiguration('angle_compensate', default='true')
     scan_mode = LaunchConfiguration('scan_mode', default='Sensitivity')
-    log_level = LaunchConfiguration('log_level', default='debug')
+    log_level = LaunchConfiguration('log_level', default='info')
 
 # see http://bucket.download.slamtec.com/cd82fe93553fea5d15237cb3d6a45a406ef641aa/LR001_SLAMTEC_rplidar_protocol_v2.0_en.pdf
 # Standard: max_distance: 25.0 m, Point number: 4.0K

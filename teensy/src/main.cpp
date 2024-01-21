@@ -25,7 +25,7 @@
 #include "task.h"
 #include "fsm.h"
 #include "manual_mode.h"
-#include "remote_mode.h"
+#include "auto_mode.h"
 #include "rx_events.h"
 #include "blinker.h"
 
@@ -232,15 +232,15 @@ bool every_n_ms(uint32_t last_loop_ms, uint32_t loop_ms, uint32_t ms, uint32_t o
 // modes
 
 ManualMode manual_mode;
-RemoteMode remote_mode;
+AutoMode auto_mode;
 
-Task * tasks[] = {&manual_mode, &remote_mode};
+Task * tasks[] = {&manual_mode, &auto_mode};
 
 Fsm::Edge edges[] = {
-  {"manual", "remote", "remote"},
-  {"remote", "manual", "manual"},
-  {"remote", "non-neutral", "manual"},
-  {"remote", "done", "manual"}
+  {"manual", "auto", "auto"},
+  {"auto", "manual", "manual"},
+  {"auto", "non-neutral", "manual"},
+  {"auto", "done", "manual"}
 };
 
 Fsm modes(tasks, count_of(tasks), edges, count_of(edges));
@@ -250,7 +250,7 @@ void command_manual() {
 }
 
 void command_remote_control() {
-  modes.set_event("remote");
+  modes.set_event("auto");
 }
 
 ///////////////////////////////////////////////
@@ -295,7 +295,7 @@ uros_states uros_state = WAITING_AGENT;
 void rc_command_received(const void * msg) {
   // Cast received message to used type
   const car_msgs__msg__RcCommand * rc_command = (const car_msgs__msg__RcCommand *)msg;
-  remote_mode.command_steer_and_esc(rc_command->str_us,  rc_command->esc_us);
+  auto_mode.command_steer_and_esc(rc_command->str_us,  rc_command->esc_us);
 }
 
 
@@ -370,7 +370,7 @@ void publish_update_message() {
 
     update_message.mpu_deg_f = mpu9150.temperature /340.0 + 35.0;
 
-    update_message.go = (modes.current_task == &remote_mode);
+    update_message.go = (modes.current_task == &auto_mode);
 
     std::ignore = rcl_publish(&update_publisher, &update_message, NULL);
 }
@@ -663,19 +663,33 @@ void setup() {
 
 }
 
+static char last_hoa_mode = '?'; // hand/off/auto indicator
+
 void loop() {
   static uint32_t last_loop_ms = 0;
   uint32_t loop_ms = millis();
 
   blinker.execute();
 
-  rx_events.process_pulses(rx_str.pulse_us(), rx_esc.pulse_us());
+  rx_events.process_pulses(rx_str.pulse_us(), rx_esc.pulse_us(), rx_aux.pulse_us());
   bool new_rx_event = rx_events.get_event();
   // send events through modes state machine
   if(new_rx_event) {
-    if(!rx_events.current.equals(RxEvent('C','N'))) {
+    auto c = rx_events.current;
+    if(! (c.steer == 'C' && c.aux=='N')) {
       modes.set_event("non-neutral");
     }
+    if(c.steer == 'L') {
+      modes.set_event("auto");
+    }
+    if(c.aux != last_hoa_mode) {
+      if(c.aux == 'H') {
+        modes.set_event("manual");
+      } else if(c.aux == 'A') {
+        modes.set_event("auto");
+      }
+      last_hoa_mode = c.aux;
+    } 
   }
 
   maintain_uros_connection();
