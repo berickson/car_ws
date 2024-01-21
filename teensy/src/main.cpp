@@ -26,6 +26,7 @@
 #include "fsm.h"
 #include "manual_mode.h"
 #include "auto_mode.h"
+#include "off_mode.h"
 #include "rx_events.h"
 #include "blinker.h"
 
@@ -233,13 +234,20 @@ bool every_n_ms(uint32_t last_loop_ms, uint32_t loop_ms, uint32_t ms, uint32_t o
 
 ManualMode manual_mode;
 AutoMode auto_mode;
+OffMode off_mode;
 
-Task * tasks[] = {&manual_mode, &auto_mode};
+Task * tasks[] = {&manual_mode, &off_mode, &auto_mode};
 
 Fsm::Edge edges[] = {
   {"manual", "auto", "auto"},
+  {"manual", "off", "off"},
+  {"off", "manual", "manual"},
+  {"off", "auto", "auto"},
+  {"auto", "off", "off"},
   {"auto", "manual", "manual"},
   {"auto", "non-neutral", "manual"},
+  {"auto", "steer-change", "manual"},
+  {"auto", "throttle-change", "manual"},
   {"auto", "done", "manual"}
 };
 
@@ -663,8 +671,8 @@ void setup() {
 
 }
 
-static char last_hoa_mode = '?'; // hand/off/auto indicator
-
+char last_hoa_mode = '?'; // hand/off/auto indicator
+RxEvent last_rx_event; 
 void loop() {
   static uint32_t last_loop_ms = 0;
   uint32_t loop_ms = millis();
@@ -679,11 +687,19 @@ void loop() {
     if(! (c.steer == 'C' && c.aux=='N')) {
       modes.set_event("non-neutral");
     }
+    if(c.steer != last_rx_event.steer) {
+      modes.set_event("steer-change");
+    }
+    if(c.speed != last_rx_event.speed) {
+      modes.set_event("throttle-change");
+    }
     if(c.aux != last_hoa_mode) {
       if(c.aux == 'H') {
         modes.set_event("manual");
       } else if(c.aux == 'A') {
         modes.set_event("auto");
+      } else {
+        modes.set_event("off");
       }
       last_hoa_mode = c.aux;
     } 
