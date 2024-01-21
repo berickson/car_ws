@@ -49,18 +49,18 @@ const int pin_mpu_interrupt = 20;
 
 //const int pin_motor_temp = A13;
 
-const int pin_odo_fl_a = 2;
-const int pin_odo_fl_b = 3;
-const int pin_odo_fr_a = 4;
-const int pin_odo_fr_b = 5;
+const int pin_odo_fl_a = 0;
+const int pin_odo_fl_b = 1;
+const int pin_odo_fr_a = 2;
+const int pin_odo_fr_b = 3;
 
-const int pin_rx_str = 6;
-const int pin_rx_esc = 7;
-const int pin_rx_aux = 17;
+const int pin_rx_str = 4;
+const int pin_rx_esc = 5;
+const int pin_rx_aux = 6;
 
-const int pin_str = 8;
-const int pin_esc = 9;
-//const int pin_esc_aux = 10;
+const int pin_str = 7;
+const int pin_esc = 8;
+// const int pin_esc_aux = 9; // plugged in but not coded yet
 
 
 const int pin_motor_a = 10;
@@ -336,7 +336,7 @@ void publish_update_message() {
     #ifdef HAS_RX_AUX
      update_message.rx_aux = rx_aux.pulse_us();
     #else
-      update_message.rx_aux = 1100; //std::nan("");
+      update_message.rx_aux = std::nan("");
     #endif
 
     noInterrupts();
