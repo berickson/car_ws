@@ -86,8 +86,8 @@ class Car : public rclcpp::Node
         this->declare_parameter("velocity_k_a", 0.3, param_desc);
       }
 
-      front_right_wheel_.meters_per_tick = front_meters_per_odometer_tick;
-      front_left_wheel_.meters_per_tick = front_meters_per_odometer_tick;
+      front_right_wheel_.meters_per_tick = front_right_meters_per_odometer_tick;
+      front_left_wheel_.meters_per_tick = front_left_meters_per_odometer_tick;
       motor_.meters_per_tick = motor_meters_per_odometer_tick;
 
       fl_speedometer_publisher_ = this->create_publisher<car_msgs::msg::Speedometer> ("/car/speedometers/fl", 10);
@@ -126,10 +126,11 @@ class Car : public rclcpp::Node
 
     // car constants for blue-crash
     // todo: get from parameter server
-    const float front_meters_per_odometer_tick = 0.002528;
-    const float rear_meters_per_odometer_tick = 0.00146;
-    // const float motor_meters_per_odometer_tick = 0.00292; Blue
-    const float motor_meters_per_odometer_tick = 0.00176; // Seth
+    const float front_left_meters_per_odometer_tick = 0.002432;
+    const float front_right_meters_per_odometer_tick = 0.002434;
+    // const float rear_meters_per_odometer_tick = 0.00146;
+    const float motor_meters_per_odometer_tick = 0.002650; // Blue
+    //const float motor_meters_per_odometer_tick = 0.00176; // Seth
     const float front_wheelbase_width_in_meters = 0.2413;
     const float rear_wheelbase_width_in_meters = 0.2667;
     const float wheelbase_length_in_meters = 0.33655;

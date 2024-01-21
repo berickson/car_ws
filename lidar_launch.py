@@ -18,6 +18,7 @@ def generate_launch_description():
     inverted = LaunchConfiguration('inverted', default='true')
     angle_compensate = LaunchConfiguration('angle_compensate', default='true')
     scan_mode = LaunchConfiguration('scan_mode', default='Sensitivity')
+    log_level = LaunchConfiguration('log_level', default='debug')
 
 # see http://bucket.download.slamtec.com/cd82fe93553fea5d15237cb3d6a45a406ef641aa/LR001_SLAMTEC_rplidar_protocol_v2.0_en.pdf
 # Standard: max_distance: 25.0 m, Point number: 4.0K
@@ -63,6 +64,11 @@ def generate_launch_description():
             default_value=scan_mode,
             description='Specifying scan mode of lidar'),
 
+        DeclareLaunchArgument(
+            'log_level',
+            default_value=log_level,
+            description='Log level (default: info), can be debug, info, warn, error'),
+
         Node(
             package='sllidar_ros2',
             executable='sllidar_node',
@@ -76,6 +82,8 @@ def generate_launch_description():
                          'scan_mode': scan_mode}],
             remappings=[('start_motor', 'car/start_scan'),
                         ('stop_motor', 'car/stop_scan')],
-            output='screen'),
+            output='screen',
+            arguments=['--ros-args', '--log-level', log_level]
+        ),
     ])
 

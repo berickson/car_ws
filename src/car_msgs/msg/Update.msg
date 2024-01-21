@@ -9,6 +9,7 @@ float32 str
 float32 esc
 float32 rx_str
 float32 rx_esc
+float32 rx_aux
 float32 ax
 float32 ay
 float32 az

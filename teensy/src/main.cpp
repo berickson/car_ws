@@ -44,6 +44,7 @@
 
 #if defined(BLUE_CAR)
 #define HAS_MOTOR_ODOM
+#define HAS_RX_AUX
 const int pin_mpu_interrupt = 20;
 
 //const int pin_motor_temp = A13;
@@ -55,6 +56,7 @@ const int pin_odo_fr_b = 5;
 
 const int pin_rx_str = 6;
 const int pin_rx_esc = 7;
+const int pin_rx_aux = 17;
 
 const int pin_str = 8;
 const int pin_esc = 9;
@@ -110,6 +112,9 @@ Mpu9150 mpu9150;
 
 PwmInput rx_str;
 PwmInput rx_esc;
+#ifdef HAS_RX_AUX
+PwmInput rx_aux;
+#endif
 
 RxEvents rx_events;
 
@@ -139,6 +144,12 @@ void rx_str_handler() {
 void rx_esc_handler() {
   rx_esc.handle_change();
 }
+
+#ifdef HAS_RX_AUX
+void rx_aux_handler() {
+  rx_aux.handle_change();
+}
+#endif
 
 void odo_fl_a_changed() {
   odo_fl.sensor_a_changed();
@@ -322,6 +333,11 @@ void publish_update_message() {
 
     update_message.rx_esc = rx_esc.pulse_us();
     update_message.rx_str = rx_str.pulse_us();
+    #ifdef HAS_RX_AUX
+     update_message.rx_aux = rx_aux.pulse_us();
+    #else
+      update_message.rx_aux = 1100; //std::nan("");
+    #endif
 
     noInterrupts();
   #ifdef HAS_MOTOR_ODOM
@@ -569,6 +585,10 @@ void setup() {
 
   rx_str.attach(pin_rx_str);
   rx_esc.attach(pin_rx_esc);
+#ifdef HAS_RX_AUX
+  rx_aux.attach(pin_rx_aux);
+#endif
+  
   str.attach(pin_str);
   esc.attach(pin_esc);
 
@@ -578,6 +598,9 @@ void setup() {
 
   attachInterrupt(pin_rx_str, rx_str_handler, CHANGE);
   attachInterrupt(pin_rx_esc, rx_esc_handler, CHANGE);
+#ifdef HAS_RX_AUX
+  attachInterrupt(pin_rx_aux, rx_aux_handler, CHANGE);
+#endif
 
 #ifdef HAS_MOTOR_ODOM
   pinMode(pin_motor_a, INPUT);
@@ -603,13 +626,13 @@ void setup() {
   battery_sensor.init();
 
   modes.begin();
-
   Wire.begin();
 
   mpu9150.setup();
 
 #if defined(BLUE_CAR)
 #define HAS_MOTOR_ODOM
+#define HAS_RX_AUX
   mpu9150.ax_bias = 0;
   mpu9150.ay_bias = 0;
   mpu9150.az_bias = 7893.51;

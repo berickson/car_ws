@@ -1,0 +1,56 @@
+networks:
+  shared_network:
+  # don't use bridged network, it will cause the container to have a different IP address than the host
+    driver: bridge
+
+services:
+  car:
+    build: .
+    image: car
+    container_name: car
+
+  lidar:
+    image: car
+    container_name: lidar
+    command: bash -c "cd /car_ws && source /opt/ros/iron/setup.bash && source install/setup.bash && ros2 launch ./lidar_launch.py"
+    volumes:
+      - .:/car_ws
+      - /dev:/dev
+      - /dev/shm:/dev/shm
+    ports:
+      - "11311:11311" # ROS 2 TCP and UDP ports
+    networks:
+      - shared_network
+    # privileged: true
+    #network_mode: host
+    #ipc: host
+
+  gps:
+    image: car
+    container_name: gps
+    command: bash -c "cd /car_ws && source /opt/ros/iron/setup.bash && ros2 run nmea_navsat_driver nmea_topic_driver --ros-args -r __ns:=/car/gps"
+    volumes:
+      - .:/car_ws
+      - /dev:/dev
+      - /dev/shm:/dev/shm
+    #ports:
+    #  - "11311:11311" # ROS 2 TCP and UDP ports
+    networks:
+      - shared_network
+    # privileged: true
+    #network_mode: host
+    #ipc: host
+  client:
+    image: car
+    container_name: client
+    command: tail -f /dev/null
+    volumes:
+      - .:/car_ws
+      - /dev:/dev
+      - /dev/shm:/dev/shm
+    # privileged: true
+    #ports:
+    #  - "11311:11311" # ROS 2 TCP and UDP ports
+    networks:
+      - shared_network
+    #ipc: host
