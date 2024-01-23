@@ -29,4 +29,9 @@ float32 mpu_deg_yaw
 float32 mpu_deg_pitch
 float32 mpu_deg_roll
 float32 mpu_deg_f
+
+float32 mag_x
+float32 mag_y
+float32 mag_z
+
 bool go

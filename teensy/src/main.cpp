@@ -579,15 +579,134 @@ void maintain_uros_connection() {
 }
 
 
+void scan_i2c_devices(TwoWire & wire) {
+
+  byte error, address;
+  int nDevices;
+ 
+  Serial.println("Scanning...");
+ 
+  nDevices = 0;
+  for(address = 1; address < 127; address++ )
+  {
+    // The i2c_scanner uses the return value of
+    // the Write.endTransmisstion to see if
+    // a device did acknowledge to the address.
+    wire.beginTransmission(address);
+    error = wire.endTransmission();
+ 
+    if (error == 0)
+    {
+      Serial.print("I2C device found at address 0x");
+      if (address<16)
+        Serial.print("0");
+      Serial.print(address,HEX);
+      Serial.println("  !");
+ 
+      nDevices++;
+    }
+    else if (error==4)
+    {
+      Serial.print("Unknown error at address 0x");
+      if (address<16)
+        Serial.print("0");
+      Serial.println(address,HEX);
+    }    
+  }
+  if (nDevices == 0)
+    Serial.println("No I2C devices found\n");
+ 
+}
+
+void print_i2c_register_numbers_and_values(TwoWire & wire, int address, int start, int end) {
+  Serial.printf("i2c register numbers and values for device at 0x%02X\n", address);
+  for(int i=start; i<=end; i++) {
+    wire.beginTransmission(address);
+    wire.write(i);
+    wire.endTransmission();
+    wire.requestFrom(address, 1);
+    if(wire.available()) {
+      Serial.printf("  0x%02X: 0x%02X\n", i, wire.read());
+    }
+  }
+}
+
+#include <HMC5883L.h>
+#include "qmc5883.h"
 
 ///////////////////////////////////////////////
 // setup and loop
-
+// #include "ak8975.h"
 void setup() {
   Serial.begin(921600);
   Serial3.begin(38400);
   delay(1000);
   Serial.println("setup");
+  QMC5883 compass(Wire1);
+  Wire1.begin();
+  compass.setAddress(0x0D);
+  compass.softReset();
+  compass.init();
+  compass.setMode(Mode_Continuous,ODR_100Hz,RNG_2G,OSR_512);
+
+  while(true) {
+    int16_t x, y, z;
+    compass.read(&x, &y, &z);
+    float angle = compass.azimuth(x, y);
+    Serial.printf("mag: %d %d %d angle: %f deg\n", x, y, z, angle);
+    delay(10);
+  }
+
+
+  // HMC5883L compass(Wire1);
+  // Serial.println("Before wire1 begin");
+  // Wire1.begin();
+  // scan_i2c_devices(Wire1);
+  // int error;
+  // print_i2c_register_numbers_and_values(Wire1, 0x0D, 0x00, 0xff);
+  // while(true); // spin forever
+  // Serial.println("before initCompass");
+  // //compass.initCompass();
+  // Serial.println("after initCompass");
+  // //int error = compass.setAverageSamples(4);
+  // // if (error != 0) { // If there is an error, print it out.
+  // //       Serial.println(compass.getErrorText(error));
+  // // }
+
+  // // Serial.println("Setting scale to +/- 1.3 Ga");
+  // // error = compass.setScale(1.3);
+  // // if (error != 0) { // If there is an error, print it out.
+  // //     Serial.println(compass.getErrorText(error));
+  // // }
+
+  // Serial.println("Setting measurement mode to continous.");
+  // error = compass.setMeasurementMode(MEASUREMENT_CONTINUOUS); // Set the measurement mode to Continuous
+  // if (error != 0) { // If there is an error, print it out.
+  //     Serial.println(compass.getErrorText(error));
+  // }
+
+  // while(true) {
+  //   MagnetometerScaled scaled = compass.readScaledAxis();
+  //   Serial.printf("mag: %f %f %f\n", scaled.XAxis, scaled.YAxis, scaled.ZAxis); 
+  // }
+
+  //AK8975 ak8975(Wire1);
+  //ak8975.dump_registers();
+  delay(100000);
+  // while(1) {
+  //   AK8975::CompassReading mag_reading;
+  //   ak8975.get_reading(&mag_reading);
+  //   auto mode = ak8975.get_mode();
+  //   if(ak8975.test_connection()) {
+  //     Serial.println("ak8975 connected");
+  //   } else {
+  //     Serial.println("ak8975 not connected");
+  //   }
+  //   Serial.printf("mode: %d\n", mode);
+  //   Serial.printf("mag: %d %d %d\n", mag_reading.x, mag_reading.y, mag_reading.z);
+  //   delay(500);
+  // }
+  
 
   set_microros_serial_transports(Serial);
 
