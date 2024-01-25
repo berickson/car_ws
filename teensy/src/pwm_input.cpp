@@ -8,8 +8,14 @@ void PwmInput::attach(int pin) {
   pinMode(pin, INPUT);
 }
 
+void PwmInput::set_from_crsf(unsigned long us) {
+  last_trigger_us = micros();
+  pulse_width_us = us;
+  last_pulse_ms = millis();
+}
+
 // interrupt handler
-void PwmInput::handle_change() {
+void PwmInput::handle_change() {  
   unsigned long us = micros();
   if(digitalRead(pin)) {
     last_trigger_us = us;

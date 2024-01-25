@@ -33,5 +33,6 @@ float32 mpu_deg_f
 float32 mag_x
 float32 mag_y
 float32 mag_z
+float32 mag_deg_yaw
 
 bool go

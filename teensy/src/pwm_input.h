@@ -20,6 +20,7 @@ public:
   int pin;
 
   void attach(int pin);
+  void set_from_crsf(unsigned long us);
   // interrupt handler
   void handle_change();
   bool is_valid();

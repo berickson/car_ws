@@ -8,6 +8,12 @@
 #include <rclc/executor.h>
 #include <rmw_microros/rmw_microros.h>
 
+#include "qmc5883.h" // magnetometer
+
+#undef PLATFORMIO
+#include "CRSFforArduino.hpp" // CRSF
+
+
 #include <tuple> // for std::ignore
 
 #include "nmea_msgs/msg/sentence.h"
@@ -46,7 +52,7 @@
 #if defined(BLUE_CAR)
 #define HAS_MOTOR_ODOM
 #define HAS_RX_AUX
-const int pin_mpu_interrupt = 20;
+#define USE_CRSF
 
 //const int pin_motor_temp = A13;
 
@@ -55,9 +61,10 @@ const int pin_odo_fl_b = 1;
 const int pin_odo_fr_a = 2;
 const int pin_odo_fr_b = 3;
 
-const int pin_rx_str = 4;
-const int pin_rx_esc = 5;
-const int pin_rx_aux = 6;
+// removed for CRSF
+// const int pin_rx_str = 4;
+// const int pin_rx_esc = 5;
+// const int pin_rx_aux = 6;
 
 const int pin_str = 7;
 const int pin_esc = 8;
@@ -70,6 +77,10 @@ const int pin_motor_c = 12;
 
 const int pin_led = 13;
 
+const int pin_elrs_rx = 20; // tx5
+const int pin_elrs_tx = 21; // rx5
+
+const int pin_mpu_interrupt = 22;
 const int pin_vbat_sense = A9;
 
 #endif
@@ -110,6 +121,10 @@ const int pin_vbat_sense = A9;
 // Globals
 
 Mpu9150 mpu9150;
+QMC5883 magnetometer(Wire1);
+CRSFforArduino crsf = CRSFforArduino(&Serial5);
+int16_t mag_x, mag_y, mag_z;
+
 
 PwmInput rx_str;
 PwmInput rx_esc;
@@ -378,6 +393,11 @@ void publish_update_message() {
 
     update_message.mpu_deg_f = mpu9150.temperature /340.0 + 35.0;
 
+    update_message.mag_x = mag_x;
+    update_message.mag_y = mag_y;
+    update_message.mag_z = mag_z;
+    update_message.mag_deg_yaw = magnetometer.azimuth(mag_x, mag_y);
+
     update_message.go = (modes.current_task == &auto_mode);
 
     std::ignore = rcl_publish(&update_publisher, &update_message, NULL);
@@ -631,8 +651,6 @@ void print_i2c_register_numbers_and_values(TwoWire & wire, int address, int star
   }
 }
 
-#include <HMC5883L.h>
-#include "qmc5883.h"
 
 ///////////////////////////////////////////////
 // setup and loop
@@ -641,79 +659,44 @@ void setup() {
   Serial.begin(921600);
   Serial3.begin(38400);
   delay(1000);
-  Serial.println("setup");
-  QMC5883 compass(Wire1);
-  Wire1.begin();
-  compass.setAddress(0x0D);
-  compass.softReset();
-  compass.init();
-  compass.setMode(Mode_Continuous,ODR_100Hz,RNG_2G,OSR_512);
 
-  while(true) {
-    int16_t x, y, z;
-    compass.read(&x, &y, &z);
-    float angle = compass.azimuth(x, y);
-    Serial.printf("mag: %d %d %d angle: %f deg\n", x, y, z, angle);
-    delay(10);
-  }
-
-
-  // HMC5883L compass(Wire1);
-  // Serial.println("Before wire1 begin");
-  // Wire1.begin();
-  // scan_i2c_devices(Wire1);
-  // int error;
-  // print_i2c_register_numbers_and_values(Wire1, 0x0D, 0x00, 0xff);
-  // while(true); // spin forever
-  // Serial.println("before initCompass");
-  // //compass.initCompass();
-  // Serial.println("after initCompass");
-  // //int error = compass.setAverageSamples(4);
-  // // if (error != 0) { // If there is an error, print it out.
-  // //       Serial.println(compass.getErrorText(error));
-  // // }
-
-  // // Serial.println("Setting scale to +/- 1.3 Ga");
-  // // error = compass.setScale(1.3);
-  // // if (error != 0) { // If there is an error, print it out.
-  // //     Serial.println(compass.getErrorText(error));
-  // // }
-
-  // Serial.println("Setting measurement mode to continous.");
-  // error = compass.setMeasurementMode(MEASUREMENT_CONTINUOUS); // Set the measurement mode to Continuous
-  // if (error != 0) { // If there is an error, print it out.
-  //     Serial.println(compass.getErrorText(error));
-  // }
-
-  // while(true) {
-  //   MagnetometerScaled scaled = compass.readScaledAxis();
-  //   Serial.printf("mag: %f %f %f\n", scaled.XAxis, scaled.YAxis, scaled.ZAxis); 
-  // }
-
-  //AK8975 ak8975(Wire1);
-  //ak8975.dump_registers();
-  delay(100000);
-  // while(1) {
-  //   AK8975::CompassReading mag_reading;
-  //   ak8975.get_reading(&mag_reading);
-  //   auto mode = ak8975.get_mode();
-  //   if(ak8975.test_connection()) {
-  //     Serial.println("ak8975 connected");
-  //   } else {
-  //     Serial.println("ak8975 not connected");
-  //   }
-  //   Serial.printf("mode: %d\n", mode);
-  //   Serial.printf("mag: %d %d %d\n", mag_reading.x, mag_reading.y, mag_reading.z);
-  //   delay(500);
-  // }
+  ///////////////////////////////////////////////
+  // CSRF Test code
+  #ifdef USE_CRSF
+    // Initialize the CRSFforArduino library.
+    if (!crsf.begin())
+    {
+      // TODO: report setup errors some better way, maybe blink LED
+        Serial.println("CRSF for Arduino initialization failed!");
+        while (1)
+        {
+            ;
+        }
+    }
+  #endif
   
+
+  ///////////////////////////////////////////////
+
+
+  Serial.println("setup");
+  Wire1.begin();
+  magnetometer.setAddress(0x0D);
+  magnetometer.softReset();
+  magnetometer.init();
+  magnetometer.setMode(Mode_Continuous,ODR_200Hz,RNG_8G,OSR_512);
 
   set_microros_serial_transports(Serial);
 
+#ifndef USE_CRSF
   rx_str.attach(pin_rx_str);
   rx_esc.attach(pin_rx_esc);
-#ifdef HAS_RX_AUX
-  rx_aux.attach(pin_rx_aux);
+  attachInterrupt(pin_rx_str, rx_str_handler, CHANGE);
+  attachInterrupt(pin_rx_esc, rx_esc_handler, CHANGE);
+  #ifdef HAS_RX_AUX
+    rx_aux.attach(pin_rx_aux);
+    attachInterrupt(pin_rx_aux, rx_aux_handler, CHANGE);
+  #endif
 #endif
   
   str.attach(pin_str);
@@ -722,12 +705,6 @@ void setup() {
   // 1500 is usually safe...
   esc.writeMicroseconds(1500);
   str.writeMicroseconds(1500);
-
-  attachInterrupt(pin_rx_str, rx_str_handler, CHANGE);
-  attachInterrupt(pin_rx_esc, rx_esc_handler, CHANGE);
-#ifdef HAS_RX_AUX
-  attachInterrupt(pin_rx_aux, rx_aux_handler, CHANGE);
-#endif
 
 #ifdef HAS_MOTOR_ODOM
   pinMode(pin_motor_a, INPUT);
@@ -828,6 +805,27 @@ void loop() {
 
   if(every_n_ms(last_loop_ms, loop_ms, 10)) {
     modes.execute();
+  }
+
+  #ifdef USE_CRSF
+    crsf.update(); // update as fast as possible, but use it less often
+
+    if(every_n_ms(last_loop_ms, loop_ms, 10)) {
+      rx_str.set_from_crsf(crsf.rcToUs(crsf.getChannel(1))) ;
+      rx_esc.set_from_crsf(crsf.rcToUs(crsf.getChannel(2)));
+      rx_aux.set_from_crsf(crsf.rcToUs(crsf.getChannel(3)));
+    }
+    if(every_n_ms(last_loop_ms, loop_ms, 1000)) {
+       crsf.telemetryWriteBattery(battery_sensor.v_bat * 100,0,0,0);
+    }
+
+  #endif
+
+
+
+  if(every_n_ms(last_loop_ms, loop_ms, 10, 3)) {
+    // read magnetometer
+    magnetometer.read(&mag_x, &mag_y, &mag_z);
   }
 
   while(Serial3.available()) {

@@ -56,7 +56,7 @@ void QMC5883::read(int16_t* x,int16_t* y,int16_t* z,float* a){
 }
 
 
-float QMC5883::azimuth(int16_t x, int16_t y){
+float QMC5883:: azimuth(int16_t x, int16_t y){
   float azimuth = atan2(y, x) * 180.0/PI;
   return azimuth < 0?360 + azimuth:azimuth;
 }
