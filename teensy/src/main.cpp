@@ -817,7 +817,7 @@ void loop() {
     }
     if(every_n_ms(last_loop_ms, loop_ms, 200)) {
        crsf.telemetryWriteBattery(battery_sensor.v_bat * 100,0,0,0);
-       // crsf.telemetryWriteFlightMode(modes.current_task->name);
+       crsf.telemetryWriteCustomFlightMode(modes.current_task->name);
     }
 
   #endif
