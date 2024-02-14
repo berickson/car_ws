@@ -815,8 +815,9 @@ void loop() {
       rx_esc.set_from_crsf(crsf.rcToUs(crsf.getChannel(2)));
       rx_aux.set_from_crsf(crsf.rcToUs(crsf.getChannel(3)));
     }
-    if(every_n_ms(last_loop_ms, loop_ms, 1000)) {
+    if(every_n_ms(last_loop_ms, loop_ms, 200)) {
        crsf.telemetryWriteBattery(battery_sensor.v_bat * 100,0,0,0);
+       // crsf.telemetryWriteFlightMode(modes.current_task->name);
     }
 
   #endif
