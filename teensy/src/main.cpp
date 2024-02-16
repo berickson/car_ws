@@ -30,7 +30,7 @@
 #include "quadrature_encoder.h"
 #include "task.h"
 #include "fsm.h"
-#include "manual_mode.h"
+#include "hand_mode.h"
 #include "auto_mode.h"
 #include "off_mode.h"
 #include "rx_events.h"
@@ -247,29 +247,30 @@ bool every_n_ms(uint32_t last_loop_ms, uint32_t loop_ms, uint32_t ms, uint32_t o
 ///////////////////////////////////////////////
 // modes
 
-ManualMode manual_mode;
-AutoMode auto_mode;
+HandMode hand_mode;
 OffMode off_mode;
+AutoMode auto_mode;
 
-Task * tasks[] = {&manual_mode, &off_mode, &auto_mode};
+
+Task * tasks[] = {&hand_mode, &off_mode, &auto_mode};
 
 Fsm::Edge edges[] = {
-  {"manual", "auto", "auto"},
-  {"manual", "off", "off"},
-  {"off", "manual", "manual"},
+  {"hand", "auto", "auto"},
+  {"hand", "off", "off"},
+  {"off", "hand", "hand"},
   {"off", "auto", "auto"},
   {"auto", "off", "off"},
-  {"auto", "manual", "manual"},
-  {"auto", "non-neutral", "manual"},
-  {"auto", "steer-change", "manual"},
-  {"auto", "throttle-change", "manual"},
-  {"auto", "done", "manual"}
+  {"auto", "hand", "hand"},
+  {"auto", "non-neutral", "hand"},
+  {"auto", "steer-change", "hand"},
+  {"auto", "throttle-change", "hand"},
+  {"auto", "done", "hand"}
 };
 
 Fsm modes(tasks, count_of(tasks), edges, count_of(edges));
 
-void command_manual() {
-  modes.set_event("manual");
+void command_hand() {
+  modes.set_event("hand");
 }
 
 void command_remote_control() {
@@ -323,7 +324,7 @@ void rc_command_received(const void * msg) {
 
 
 void command_remote_control();  // forward decl
-void command_manual();          // forward decl
+void command_hand();          // forward decl
 
 void enable_rc_mode_service_callback(const void * /*request_msg*/, void * /*response_msg*/) {
 
@@ -332,7 +333,7 @@ void enable_rc_mode_service_callback(const void * /*request_msg*/, void * /*resp
 
 void disable_rc_mode_service_callback(const void * /*request_msg*/, void * /*response_msg*/) {
 
-  command_manual();
+  command_hand();
 }
 
 
@@ -791,7 +792,7 @@ void loop() {
     }
     if(c.aux != last_hoa_mode) {
       if(c.aux == 'H') {
-        modes.set_event("manual");
+        modes.set_event("hand");
       } else if(c.aux == 'A') {
         modes.set_event("auto");
       } else {

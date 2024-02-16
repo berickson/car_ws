@@ -1,4 +1,4 @@
-#include "manual_mode.h"
+#include "hand_mode.h"
 #include "Arduino.h"
 #include "Servo.h"
 #include "pwm_input.h"
@@ -9,20 +9,20 @@ extern PwmInput rx_str;
 extern PwmInput rx_esc;
 
 
-ManualMode::ManualMode() {
-  name = "manual";
+HandMode::HandMode() {
+  name = "hand";
 }
 
-void ManualMode::begin() {
-  // nh.loginfo("begin of manual mode");
+void HandMode::begin() {
+  // nh.loginfo("begin of hand mode");
 }
 
-void ManualMode::end() {
+void HandMode::end() {
     str.writeMicroseconds(1500);
     esc.writeMicroseconds(1500);
 }
 
-void ManualMode::execute() {
+void HandMode::execute() {
   if(rx_str.pulse_us() > 0 && rx_esc.pulse_us() > 0) {
     str.writeMicroseconds(rx_str.pulse_us());
     esc.writeMicroseconds(rx_esc.pulse_us());
