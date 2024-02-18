@@ -6,7 +6,6 @@
 float x_fov_degrees = 69;
 int x_resolution = 640;
 
-
 class cone_follower_node : public rclcpp::Node {
 public:
   rclcpp::Subscription<vision_msgs::msg::Detection2DArray>::SharedPtr subscription_;
@@ -14,8 +13,6 @@ public:
 
   void cone_detection_callback(const vision_msgs::msg::Detection2DArray::SharedPtr detections_msg) {
     for(auto detection : detections_msg->detections) {
-      
-
       float x_angle_degrees = (x_resolution/2.0 - detection.bbox.center.position.x)/x_resolution * x_fov_degrees;
       float x_width_degrees = detection.bbox.size_x * x_fov_degrees / x_resolution;
       float width_radians = x_width_degrees * (M_PI / 180.0); 
@@ -29,25 +26,20 @@ public:
       float distance_remaining = distance - stop_distance;
 
       // velocity to stop in time
-      float velocity = distance_remaining > 0 ? (2 * max_acceleration * distance_remaining) : 0;
-      velocity = std::min(velocity, max_velocity);
-      velocity = std::max(velocity, min_velocity);
+      float velocity = distance_remaining > 0 ?
+        std::clamp(2 * max_acceleration * distance_remaining, min_velocity, max_velocity) 
+        : 0;
 
       RCLCPP_INFO(this->get_logger(), "detection degrees: %3.1f width_degrees: %3.1f distance: %3.2f vel: %3.2f", x_angle_degrees, x_width_degrees, distance, velocity);
 
       geometry_msgs::msg::Twist cmd_vel_msg;
       cmd_vel_msg.linear.x = velocity;
-
-      // turn angle_degrees in one meter
-      float correction_distance = std::min(distance_remaining / 2, 1.0f); // distance to complete turn to currect angle
-      cmd_vel_msg.angular.z = x_angle_degrees * (M_PI / 180.0) *  cmd_vel_msg.linear.x / correction_distance;
-
-      // stop if too close
-      if(distance < stop_distance) {
-        cmd_vel_msg.linear.x = 0;
+      if(velocity > 0) {
+        float correction_distance = std::clamp(distance_remaining / 2, 0.5f, 2.0f); // distance to complete turn to currect angle
+        cmd_vel_msg.angular.z = x_angle_degrees * (M_PI / 180.0) *  cmd_vel_msg.linear.x / correction_distance;
+      } else {
         cmd_vel_msg.angular.z = 0;
       }
-
 
       cmd_vel_publisher_->publish(cmd_vel_msg);
 
