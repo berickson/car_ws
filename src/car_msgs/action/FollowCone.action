@@ -1,0 +1,8 @@
+# Define the goal
+int32 goal
+---
+# Define the result
+int32 result
+---
+# Define the feedback
+int32 feedback

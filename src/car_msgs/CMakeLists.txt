@@ -34,6 +34,7 @@ rosidl_generate_interfaces(${PROJECT_NAME}
   "msg/SpeedCommand.msg"
   "msg/Speedometer.msg"
   "msg/SteerCommand.msg"
+  "action/FollowCone.action"
   DEPENDENCIES builtin_interfaces std_msgs
  )
 

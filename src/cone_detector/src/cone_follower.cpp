@@ -2,14 +2,23 @@
 #include "rclcpp/node.hpp"
 #include "vision_msgs/msg/detection2_d_array.hpp"
 #include "geometry_msgs/msg/twist.hpp"
+#include "car_msgs/action/follow_cone.hpp"
+#include "rclcpp_action/server.hpp"
+
 
 float x_fov_degrees = 69;
 int x_resolution = 640;
 
 class cone_follower_node : public rclcpp::Node {
 public:
+  using FollowConeAction = car_msgs::action::FollowCone;
+  using GoalHandleFollowConeAction = rclcpp_action::ServerGoalHandle<FollowConeAction>;
+
   rclcpp::Subscription<vision_msgs::msg::Detection2DArray>::SharedPtr subscription_;
   rclcpp::Publisher<geometry_msgs::msg::Twist>::SharedPtr cmd_vel_publisher_;
+
+  rclcpp_action::Server<FollowConeAction>::SharedPtr action_server_;
+
 
   void cone_detection_callback(const vision_msgs::msg::Detection2DArray::SharedPtr detections_msg) {
     for(auto detection : detections_msg->detections) {
