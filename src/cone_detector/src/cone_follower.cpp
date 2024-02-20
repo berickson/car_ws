@@ -11,16 +11,54 @@ int x_resolution = 640;
 
 class cone_follower_node : public rclcpp::Node {
 public:
-  using FollowConeAction = car_msgs::action::FollowCone;
-  using GoalHandleFollowConeAction = rclcpp_action::ServerGoalHandle<FollowConeAction>;
+  using FollowCone = car_msgs::action::FollowCone;
+  using GoalHandleFollowCone = rclcpp_action::ServerGoalHandle<FollowCone>;
 
   rclcpp::Subscription<vision_msgs::msg::Detection2DArray>::SharedPtr subscription_;
   rclcpp::Publisher<geometry_msgs::msg::Twist>::SharedPtr cmd_vel_publisher_;
+  rclcpp_action::Server<FollowCone>::SharedPtr action_server_;
 
-  rclcpp_action::Server<FollowConeAction>::SharedPtr action_server_;
+  std::shared_ptr<GoalHandleFollowCone> goal_handle_;
+
+  void stop_car() {
+    cmd_vel_publisher_->publish(geometry_msgs::msg::Twist());
+  }
+
+  rclcpp_action::GoalResponse handle_goal(
+    const rclcpp_action::GoalUUID & uuid,
+    std::shared_ptr<const FollowCone::Goal> goal) 
+  {
+    if(goal_handle_.get() != nullptr) {
+      RCLCPP_INFO(this->get_logger(), "Received new goal request, canceling previous goal");
+      auto result = std::make_shared<FollowCone::Result>();
+      goal_handle_->abort(result);
+      goal_handle_ = nullptr;
+    } 
+    RCLCPP_INFO(this->get_logger(), "Received goal request");
+    return rclcpp_action::GoalResponse::ACCEPT_AND_EXECUTE;
+  }
+
+  void handle_accepted(const std::shared_ptr<GoalHandleFollowCone> goal_handle)
+  {
+    goal_handle_ = goal_handle;
+    // this is message based, so we don't need to do anything here, we can create a thread
+    // if we want to do something in the background
+  }
+
+  rclcpp_action::CancelResponse handle_cancel(
+    const std::shared_ptr<GoalHandleFollowCone> goal_handle)
+  {
+    RCLCPP_INFO(this->get_logger(), "Received request to cancel goal");
+    goal_handle_ = nullptr;
+    return rclcpp_action::CancelResponse::ACCEPT;
+  }
+
 
 
   void cone_detection_callback(const vision_msgs::msg::Detection2DArray::SharedPtr detections_msg) {
+    if(goal_handle_.get() == nullptr) {
+      return;
+    }
     for(auto detection : detections_msg->detections) {
       float x_angle_degrees = (x_resolution/2.0 - detection.bbox.center.position.x)/x_resolution * x_fov_degrees;
       float x_width_degrees = detection.bbox.size_x * x_fov_degrees / x_resolution;
@@ -51,6 +89,13 @@ public:
       }
 
       cmd_vel_publisher_->publish(cmd_vel_msg);
+      if(distance_remaining <= 0) {
+        if(goal_handle_.get() != nullptr) {
+          RCLCPP_INFO(this->get_logger(), "Goal reached, completing action");
+          goal_handle_->succeed(std::make_shared<FollowCone::Result>());
+          goal_handle_ = nullptr;
+        }
+      }
 
       break; // we'll just grab the first detection (if any)
     }
