@@ -2,8 +2,12 @@
 #include "rclcpp/node.hpp"
 #include "vision_msgs/msg/detection2_d_array.hpp"
 #include "geometry_msgs/msg/twist.hpp"
+
 #include "car_msgs/action/follow_cone.hpp"
 #include "rclcpp_action/server.hpp"
+#include "rclcpp_action/rclcpp_action.hpp"
+
+using namespace std::placeholders;
 
 
 float x_fov_degrees = 69;
@@ -17,6 +21,7 @@ public:
   rclcpp::Subscription<vision_msgs::msg::Detection2DArray>::SharedPtr subscription_;
   rclcpp::Publisher<geometry_msgs::msg::Twist>::SharedPtr cmd_vel_publisher_;
   rclcpp_action::Server<FollowCone>::SharedPtr action_server_;
+
 
   std::shared_ptr<GoalHandleFollowCone> goal_handle_;
 
@@ -106,7 +111,14 @@ public:
     RCLCPP_INFO(this->get_logger(), "Cone Follower Node has started");
     subscription_ = this->create_subscription<vision_msgs::msg::Detection2DArray>("car/oakd/color/cone_detections", 1, std::bind(&cone_follower_node::cone_detection_callback, this, std::placeholders::_1));
     cmd_vel_publisher_ = this->create_publisher<geometry_msgs::msg::Twist>("cmd_vel", 1);
-  }
+
+    this->action_server_ = rclcpp_action::create_server<FollowCone>(
+      this,
+      "follow_cone",
+      std::bind(&cone_follower_node::handle_goal, this, _1, _2),
+      std::bind(&cone_follower_node::handle_cancel, this, _1),
+      std::bind(&cone_follower_node::handle_accepted, this, _1));
+    }
   
 };
 

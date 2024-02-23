@@ -77,6 +77,10 @@ add_executable(cone_follower src/cone_follower.cpp)
 
 ament_target_dependencies(cone_follower car_msgs ${dependencies})
 
+add_executable(cone_follower_client src/cone_follower_client.cpp)
+ament_target_dependencies(cone_follower_client car_msgs ${dependencies})
+
+
 target_compile_definitions(cone_detector_node PRIVATE BLOB_NAME="${yolov8n_cone_blob_name}")
 
 if($ENV{ROS_DISTRO} STREQUAL "galactic")
@@ -93,6 +97,7 @@ FILES_MATCHING PATTERN "*.py")
 install(TARGETS
         cone_detector_node
         cone_follower
+        cone_follower_client
         DESTINATION lib/${PROJECT_NAME})
 
 ament_package()
