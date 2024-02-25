@@ -77,6 +77,10 @@ const int pin_motor_c = 12;
 
 const int pin_led = 13;
 
+#define WireMag Wire1
+const int pin_mag_scl = 16; // Wire1 SCL
+const int pin_mag_sda = 17; // Wire1 SDA
+
 const int pin_elrs_rx = 20; // tx5
 const int pin_elrs_tx = 21; // rx5
 
@@ -87,18 +91,19 @@ const int pin_vbat_sense = A9;
 
 #if defined(SETH_CAR)
 #define HAS_MOTOR_ODOM
-const int pin_mpu_interrupt = 20;
+#define HAS_RX_AUX
+#define USE_CRSF
 
 const int pin_odo_fl_a = 0;
 const int pin_odo_fl_b = 1;
 const int pin_odo_fr_a = 2;
 const int pin_odo_fr_b = 3;
 
-const int pin_rx_str = 6;
-const int pin_rx_esc = 7;
+// const int pin_rx_str = 6;
+// const int pin_rx_esc = 7;
 
-const int pin_str = 8;
-const int pin_esc = 9;
+const int pin_str = 7;
+const int pin_esc = 8;
 
 const int pin_motor_c = 10;
 const int pin_motor_b = 11;
@@ -107,7 +112,16 @@ const int pin_motor_a = 12;
 
 const int pin_led = 13;
 
-const int pin_vbat_sense = A9;
+#define WireMag Wire1
+const int pin_mag_scl = 16; // Wire1 SCL
+const int pin_mag_sda = 17; // Wire1 SDA
+
+const int pin_elrs_rx = 20; // tx5
+const int pin_elrs_tx = 21; // rx5
+
+const int pin_mpu_interrupt = 22;
+
+const int pin_vbat_sense = 23; // A9;
 
 #endif
 
@@ -121,7 +135,7 @@ const int pin_vbat_sense = A9;
 // Globals
 
 Mpu9150 mpu9150;
-QMC5883 magnetometer(Wire1);
+QMC5883 magnetometer(WireMag);
 CRSFforArduino crsf = CRSFforArduino(&Serial5);
 int16_t mag_x, mag_y, mag_z;
 
