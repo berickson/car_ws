@@ -89,10 +89,10 @@ const int pin_vbat_sense = A9;
 #define HAS_MOTOR_ODOM
 const int pin_mpu_interrupt = 20;
 
-const int pin_odo_fl_a = 2;
-const int pin_odo_fl_b = 3;
-const int pin_odo_fr_a = 4;
-const int pin_odo_fr_b = 5;
+const int pin_odo_fl_a = 0;
+const int pin_odo_fl_b = 1;
+const int pin_odo_fr_a = 2;
+const int pin_odo_fr_b = 3;
 
 const int pin_rx_str = 6;
 const int pin_rx_esc = 7;
@@ -776,7 +776,11 @@ void loop() {
 
   blinker.execute();
 
-  rx_events.process_pulses(rx_str.pulse_us(), rx_esc.pulse_us(), rx_aux.pulse_us());
+  #ifdef HAS_RX_AUX
+    rx_events.process_pulses(rx_str.pulse_us(), rx_esc.pulse_us(), rx_aux.pulse_us());
+  #else
+    rx_events.process_pulses(rx_str.pulse_us(), rx_esc.pulse_us(), 1500);
+  #endif
   bool new_rx_event = rx_events.get_event();
   // send events through modes state machine
   if(new_rx_event) {
