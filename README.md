@@ -42,6 +42,11 @@ This shared Ros2 workspace is a team effort to create self driving RC cars for i
     ```
     Reboot or unplug and plug camera for rules to take effect
 
+7. Get machine ready for Platformio. This avoids *"Can not find working Python 3.6+ Interpreter. Please install the latest Python 3 and restart VSCode"*
+   ```bash
+    sudo apt install python3-venv
+   ```
+
 
 ## Building the Project
 ```
