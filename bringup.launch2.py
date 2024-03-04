@@ -22,9 +22,9 @@ def generate_launch_description():
         'nav2_params.yaml')
 
     behavior_tree_path = os.path.join(
-        get_package_share_directory('nav2_bt_navigator'),
+        bringup_dir,
         'behavior_trees',
-        'navigate_w_replanning_time.xml')
+        'navigate_w_replanning_time2.xml')
 
     configured_nav2_params = RewrittenYaml(
         source_file=nav2_params_path,
