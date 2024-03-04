@@ -13,11 +13,11 @@ from launch_ros.actions import Node
 def generate_launch_description():
     channel_type =  LaunchConfiguration('channel_type', default='serial')
     serial_port = LaunchConfiguration('serial_port', default='/dev/rplidar')
-    serial_baudrate = LaunchConfiguration('serial_baudrate', default='256000') #for A3 is 256000
+    serial_baudrate = LaunchConfiguration('serial_baudrate', default='460800') #for A3 is 256000 for C1 460800
     frame_id = LaunchConfiguration('frame_id', default='laser_scanner_link')
     inverted = LaunchConfiguration('inverted', default='true')
     angle_compensate = LaunchConfiguration('angle_compensate', default='true')
-    scan_mode = LaunchConfiguration('scan_mode', default='Sensitivity')
+    scan_mode = LaunchConfiguration('scan_mode', default='Standard') # for a3 is Sensitivity for c1 is Standard
     log_level = LaunchConfiguration('log_level', default='info')
 
 # see http://bucket.download.slamtec.com/cd82fe93553fea5d15237cb3d6a45a406ef641aa/LR001_SLAMTEC_rplidar_protocol_v2.0_en.pdf

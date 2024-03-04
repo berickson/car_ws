@@ -38,6 +38,10 @@ find_package(stereo_msgs REQUIRED)
 find_package(std_msgs REQUIRED)
 find_package(vision_msgs REQUIRED)
 find_package(car_msgs REQUIRED)
+find_package(behaviortree_cpp REQUIRED)
+find_package(nav2_msgs REQUIRED)
+find_package(nav2_behavior_tree REQUIRED)
+
 
 set(dependencies
   camera_info_manager
@@ -73,12 +77,8 @@ endmacro()
 
 
 dai_add_node_ros2(cone_detector_node src/cone_detector_node.cpp)
-add_executable(cone_follower src/cone_follower.cpp)
 
-ament_target_dependencies(cone_follower car_msgs ${dependencies})
 
-add_executable(cone_follower_client src/cone_follower_client.cpp)
-ament_target_dependencies(cone_follower_client car_msgs ${dependencies})
 
 
 target_compile_definitions(cone_detector_node PRIVATE BLOB_NAME="${yolov8n_cone_blob_name}")
@@ -96,8 +96,6 @@ FILES_MATCHING PATTERN "*.py")
 
 install(TARGETS
         cone_detector_node
-        cone_follower
-        cone_follower_client
         DESTINATION lib/${PROJECT_NAME})
 
 ament_package()
