@@ -19,7 +19,6 @@
   <depend>car_msgs</depend>
   <depend>cone_detector</depend>
 
-  <exec_depend>car_msg</exec_depend>
   <exec_depend>depth_image_proc</exec_depend>
   <exec_depend>xacro</exec_depend>
 
