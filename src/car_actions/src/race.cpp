@@ -41,8 +41,10 @@ void back_up(float meters, float speed = 0.5, float time_allowance = 5.0) {
       }
     };
 
+  bool done = false;
   send_goal_options.result_callback =
-    [](const rclcpp_action::ClientGoalHandle<nav2_msgs::action::BackUp>::WrappedResult & result) {
+    [&done](const rclcpp_action::ClientGoalHandle<nav2_msgs::action::BackUp>::WrappedResult & result) {
+      done = true;
       switch (result.code) {
         case rclcpp_action::ResultCode::SUCCEEDED:
           RCLCPP_INFO(rclcpp::get_logger("back_up"), "Goal succeeded");
@@ -60,14 +62,17 @@ void back_up(float meters, float speed = 0.5, float time_allowance = 5.0) {
     };
   auto future = client->async_send_goal(goal, send_goal_options);
   RCLCPP_INFO(rclcpp::get_logger("back_up"), "Goal sent");
-  rclcpp::spin_until_future_complete(node, future);
   RCLCPP_INFO(rclcpp::get_logger("back_up"), "back_up complete");
+  while(!done) {
+    rclcpp::spin_some(node);
+  }
 }
 
 int main(int argc, char** argv) {
   rclcpp::init(argc, argv);
   goto_cone();
   back_up(1.0);
+  goto_cone();
   return 0;
   /*
   // create ConeFollowerClient node
