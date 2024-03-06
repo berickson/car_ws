@@ -15,7 +15,8 @@
         "/home/brian/projects/car_ws/src/nav2_line_following_controller/include/**",
         "/home/brian/projects/car_ws/src/rosbridge_cpp/include/**",
         "/home/brian/projects/car_ws/src/uros/micro-ROS-Agent/micro_ros_agent/include/**",
-        "/usr/include/**"
+        "/usr/include/**",
+        "{workspaceFolder}/include/**"
       ],
       "name": "ROS",
       "intelliSenseMode": "gcc-x64",

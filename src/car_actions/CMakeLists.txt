@@ -11,30 +11,13 @@ if(POLICY CMP0057)
     cmake_policy(SET CMP0057 NEW)
 endif()
 
-set(_opencv_version 4)
-find_package(OpenCV 4 QUIET COMPONENTS imgproc highgui)
-if(NOT OpenCV_FOUND)
-  set(_opencv_version 3)
-  find_package(OpenCV 3 REQUIRED COMPONENTS imgproc highgui)
-endif()
-
-set(yolov8n_cone_blob_name "best_openvino_2022.1_6shave.blob")
 
 
 find_package(ament_cmake REQUIRED)
 
-message(STATUS "------------------------------------------")
-message(STATUS "Depthai Bridge is being built using AMENT.")
-message(STATUS "------------------------------------------")
 
-find_package(camera_info_manager REQUIRED)
-find_package(cv_bridge REQUIRED)
-find_package(depthai CONFIG REQUIRED)
-find_package(depthai_ros_msgs REQUIRED)
-find_package(depthai_bridge REQUIRED)
 find_package(rclcpp REQUIRED)
-find_package(sensor_msgs REQUIRED)
-find_package(stereo_msgs REQUIRED)
+find_package(rclcpp_action REQUIRED)
 find_package(std_msgs REQUIRED)
 find_package(vision_msgs REQUIRED)
 find_package(car_msgs REQUIRED)
@@ -44,14 +27,11 @@ find_package(nav2_behavior_tree REQUIRED)
 
 
 set(dependencies
-  camera_info_manager
-  cv_bridge
-  depthai_ros_msgs
-  depthai_bridge
   rclcpp
-  sensor_msgs
-  stereo_msgs
+  rclcpp_action
+  car_msgs
   std_msgs
+  nav2_msgs
   vision_msgs
 )
 
@@ -66,8 +46,12 @@ include_directories(
 add_executable(car_action_server src/cone_follower.cpp)
 ament_target_dependencies(car_action_server car_msgs ${dependencies})
 
-add_executable(follow_cone src/cone_follower_client.cpp)
+add_executable(follow_cone src/follow_cone.cpp)
 ament_target_dependencies(follow_cone car_msgs ${dependencies})
+
+add_executable(race src/race.cpp)
+ament_target_dependencies(race car_msgs ${dependencies})
+
 
 add_executable(bt src/bt.cpp)
 ament_target_dependencies(bt car_msgs ${dependencies} nav2_msgs nav2_behavior_tree)
@@ -81,6 +65,7 @@ ament_target_dependencies(bt car_msgs ${dependencies} nav2_msgs nav2_behavior_tr
 
 install(TARGETS
         bt
+        race
         car_action_server
         follow_cone
         DESTINATION lib/${PROJECT_NAME})

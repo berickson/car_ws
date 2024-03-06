@@ -12,6 +12,9 @@ using namespace std::placeholders;
 
 class ConeFollowerClient : public rclcpp::Node {
   public:
+
+  bool is_goal_done = false;
+
   using FollowCone = car_msgs::action::FollowCone;
   using GoalHandleFollowCone = rclcpp_action::ClientGoalHandle<FollowCone>;
 
@@ -22,7 +25,7 @@ class ConeFollowerClient : public rclcpp::Node {
     RCLCPP_INFO(this->get_logger(), "ConeFollowerClient node started");
   }
 
-  void send_goal() {
+  std::shared_future<std::shared_ptr<ConeFollowerClient::GoalHandleFollowCone>> send_goal() {
     RCLCPP_INFO(this->get_logger(), "Sending goal");
     this->client_ptr_ = rclcpp_action::create_client<FollowCone>(
       this,
@@ -43,8 +46,9 @@ class ConeFollowerClient : public rclcpp::Node {
       std::bind(&ConeFollowerClient::feedback_callback, this, _1, _2);
     send_goal_options.result_callback =
       std::bind(&ConeFollowerClient::result_callback, this, _1);
-    this->client_ptr_->async_send_goal(goal_msg, send_goal_options);
+    auto future = this->client_ptr_->async_send_goal(goal_msg, send_goal_options);
     RCLCPP_INFO(this->get_logger(), "Goal sent");
+    return future;
   };
 
   void goal_response_callback(const GoalHandleFollowCone::SharedPtr & goal_handle)
@@ -83,7 +87,7 @@ class ConeFollowerClient : public rclcpp::Node {
     std::stringstream ss;
     ss << "Result received: ";
     RCLCPP_INFO(this->get_logger(), ss.str().c_str());
-    rclcpp::shutdown();
+    is_goal_done = true;
   }
 };
 
