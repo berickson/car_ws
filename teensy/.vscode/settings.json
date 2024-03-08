@@ -22,5 +22,19 @@
         "system_error": "cpp",
         "tuple": "cpp"
     },
-    "ros.distro": "iron"
+    "ros.distro": "iron",
+    "python.autoComplete.extraPaths": [
+        "/home/pi/car_ws/install/tf2_web_republisher/lib/python3.10/site-packages",
+        "/home/pi/car_ws/install/micro_ros_msgs/lib/python3.10/site-packages",
+        "/home/pi/car_ws/install/detection_visualizer/lib/python3.10/site-packages",
+        "/home/pi/car_ws/install/car_msgs/lib/python3.10/site-packages",
+        "/opt/ros/iron/lib/python3.10/site-packages"
+    ],
+    "python.analysis.extraPaths": [
+        "/home/pi/car_ws/install/tf2_web_republisher/lib/python3.10/site-packages",
+        "/home/pi/car_ws/install/micro_ros_msgs/lib/python3.10/site-packages",
+        "/home/pi/car_ws/install/detection_visualizer/lib/python3.10/site-packages",
+        "/home/pi/car_ws/install/car_msgs/lib/python3.10/site-packages",
+        "/opt/ros/iron/lib/python3.10/site-packages"
+    ]
 }
