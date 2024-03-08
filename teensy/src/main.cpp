@@ -235,11 +235,12 @@ public:
     analogReadResolution(resolution_bits);	
     max_reading = pow(2, resolution_bits);
     scale = (r1+r2) * 3.3 / (max_reading * r1);
+    pinMode(pin_vbat_sense, INPUT);
   }
 
   void execute() {
 #if defined(BLUE_CAR)
-    v_bat = analogRead(pin_vbat_sense) * 11.99/777.0;
+    v_bat = analogRead(pin_vbat_sense) * 0.018829;
 #elif defined(SETH_CAR)
     v_bat = analogRead(pin_vbat_sense) * 11.64/770;
 #elif defined(ORANGE_CAR)
