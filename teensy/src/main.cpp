@@ -407,15 +407,17 @@ void publish_update_message() {
     update_message.mpu_deg_pitch = mpu9150.pitch * 180. / M_PI;
     update_message.mpu_deg_roll = mpu9150.roll * 180. / M_PI;
 
-    update_message.mpu_deg_f = mpu9150.temperature /340.0 + 35.0;
+    update_message.mpu_deg_c = mpu9150.temperature /340.0 + 35.0;
 
     update_message.mag_x = mag_x;
     update_message.mag_y = mag_y;
     update_message.mag_z = mag_z;
     update_message.mag_deg_yaw = magnetometer.azimuth(mag_x, mag_y);
 
-    update_message.go = (modes.current_task == &auto_mode);
-
+    update_message.mode.capacity = sizeof(modes.current_task->name);
+    update_message.mode.size = sizeof(modes.current_task->name);
+    update_message.mode.data = modes.current_task->name;
+  
     std::ignore = rcl_publish(&update_publisher, &update_message, NULL);
 }
 
