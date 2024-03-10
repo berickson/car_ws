@@ -29,6 +29,9 @@ def generate_launch_description():
     car = Node(package="car",
             executable="car")
 
+    car_action_server = Node(package="car_actions",
+            executable="car_action_server")
+
     foxglove_bridge = Node(
         package="foxglove_bridge",
         executable="foxglove_bridge")
@@ -45,5 +48,6 @@ def generate_launch_description():
     ld.add_action(car)
     ld.add_action(foxglove_bridge)
     ld.add_action(cone_detector)
+    ld.add_action(car_action_server)
 
     return ld
