@@ -51,8 +51,6 @@
 
 #if defined(BLUE_CAR)
 #define HAS_MOTOR_ODOM
-#define HAS_RX_AUX
-#define USE_CRSF
 
 //const int pin_motor_temp = A13;
 
@@ -61,21 +59,17 @@ const int pin_odo_fl_b = 1;
 const int pin_odo_fr_a = 2;
 const int pin_odo_fr_b = 3;
 
-// removed for CRSF
-// const int pin_rx_str = 4;
-// const int pin_rx_esc = 5;
-// const int pin_rx_aux = 6;
-
 const int pin_str = 7;
 const int pin_esc = 8;
-// const int pin_esc_aux = 9; // plugged in but not coded yet
-
 
 const int pin_motor_a = 10;
 const int pin_motor_b = 11;
 const int pin_motor_c = 12;
 
 const int pin_led = 13;
+
+const int pin_gps_rx = 14;
+const int pin_gps_tx = 15;
 
 #define WireMag Wire1
 const int pin_mag_scl = 16; // Wire1 SCL
@@ -91,16 +85,11 @@ const int pin_vbat_sense = A9;
 
 #if defined(SETH_CAR)
 #define HAS_MOTOR_ODOM
-#define HAS_RX_AUX
-#define USE_CRSF
 
 const int pin_odo_fl_a = 0;
 const int pin_odo_fl_b = 1;
 const int pin_odo_fr_a = 2;
 const int pin_odo_fr_b = 3;
-
-// const int pin_rx_str = 6;
-// const int pin_rx_esc = 7;
 
 const int pin_str = 7;
 const int pin_esc = 8;
@@ -111,6 +100,9 @@ const int pin_motor_a = 12;
 
 
 const int pin_led = 13;
+
+const int pin_gps_rx = 14;
+const int pin_gps_tx = 15;
 
 #define WireMag Wire1
 const int pin_mag_scl = 16; // Wire1 SCL
@@ -142,9 +134,7 @@ int16_t mag_x, mag_y, mag_z;
 
 PwmInput rx_str;
 PwmInput rx_esc;
-#ifdef HAS_RX_AUX
 PwmInput rx_aux;
-#endif
 
 RxEvents rx_events;
 
@@ -175,11 +165,9 @@ void rx_esc_handler() {
   rx_esc.handle_change();
 }
 
-#ifdef HAS_RX_AUX
 void rx_aux_handler() {
   rx_aux.handle_change();
 }
-#endif
 
 void odo_fl_a_changed() {
   odo_fl.sensor_a_changed();
@@ -243,10 +231,6 @@ public:
     v_bat = analogRead(pin_vbat_sense) * 0.018829;
 #elif defined(SETH_CAR)
     v_bat = analogRead(pin_vbat_sense) * 0.018931424;
-#elif defined(ORANGE_CAR)
-    // constants below based on 220k and 1M resistor, 1023 steps and 3.3 reference voltage
-    v_bat = analogRead(pin_vbat_sense) * ((3.3/1023.) / 220.)*(220.+1000.);
-#else
 #error "voltage not defined for this car"
 #endif
   }
@@ -372,11 +356,7 @@ void publish_update_message() {
 
     update_message.rx_esc = rx_esc.pulse_us();
     update_message.rx_str = rx_str.pulse_us();
-    #ifdef HAS_RX_AUX
-     update_message.rx_aux = rx_aux.pulse_us();
-    #else
-      update_message.rx_aux = std::nan("");
-    #endif
+    update_message.rx_aux = rx_aux.pulse_us();
 
     noInterrupts();
   #ifdef HAS_MOTOR_ODOM
@@ -672,30 +652,35 @@ void print_i2c_register_numbers_and_values(TwoWire & wire, int address, int star
 
 ///////////////////////////////////////////////
 // setup and loop
-// #include "ak8975.h"
+
+
 void setup() {
   Serial.begin(921600);
   Serial3.begin(38400);
   delay(1000);
 
-  ///////////////////////////////////////////////
-  // CSRF Test code
-  #ifdef USE_CRSF
-    // Initialize the CRSFforArduino library.
-    if (!crsf.begin())
-    {
-      // TODO: report setup errors some better way, maybe blink LED
-        Serial.println("CRSF for Arduino initialization failed!");
-        while (1)
-        {
-            ;
-        }
+  // Initialize CRSF
+  if (!crsf.begin())
+  {
+    // TODO: report setup errors some better way, maybe blink LED
+      Serial.println("CRSF for Arduino initialization failed!");
+      while (1)
+      {
+          ;
+      }
+  }
+
+  crsf.setRcChannelsCallback([](serialReceiverLayer::rcChannels_t * rc_channels) {
+    if(rc_channels->failsafe ){
+      rx_str.set_from_crsf(0);
+      rx_esc.set_from_crsf(0);
+      rx_aux.set_from_crsf(0);
+    } else {
+      rx_str.set_from_crsf(crsf.rcToUs(crsf.getChannel(1))) ;
+      rx_esc.set_from_crsf(crsf.rcToUs(crsf.getChannel(2)));
+      rx_aux.set_from_crsf(crsf.rcToUs(crsf.getChannel(3)));
     }
-  #endif
-  
-
-  ///////////////////////////////////////////////
-
+  });
 
   Serial.println("setup");
   Wire1.begin();
@@ -705,17 +690,6 @@ void setup() {
   magnetometer.setMode(Mode_Continuous,ODR_200Hz,RNG_8G,OSR_512);
 
   set_microros_serial_transports(Serial);
-
-#ifndef USE_CRSF
-  rx_str.attach(pin_rx_str);
-  rx_esc.attach(pin_rx_esc);
-  attachInterrupt(pin_rx_str, rx_str_handler, CHANGE);
-  attachInterrupt(pin_rx_esc, rx_esc_handler, CHANGE);
-  #ifdef HAS_RX_AUX
-    rx_aux.attach(pin_rx_aux);
-    attachInterrupt(pin_rx_aux, rx_aux_handler, CHANGE);
-  #endif
-#endif
   
   str.attach(pin_str);
   esc.attach(pin_esc);
@@ -754,7 +728,6 @@ void setup() {
 
 #if defined(BLUE_CAR)
 #define HAS_MOTOR_ODOM
-#define HAS_RX_AUX
   mpu9150.ax_bias = 0;
   mpu9150.ay_bias = 0;
   mpu9150.az_bias = 7893.51;
@@ -770,14 +743,6 @@ void setup() {
   mpu9150.zero_adjust = Quaternion(1.0, 0.0, 0.0, 0.0);
   mpu9150.yaw_slope_rads_per_ms  = -0.0000000680;
   mpu9150.yaw_actual_per_raw = 1;
-#elif defined(ORANGE_CAR)
-  mpu9150.ax_bias = 7724.52;
-  mpu9150.ay_bias = -1458.47;
-  mpu9150.az_bias = 715.62;
-  mpu9150.rest_a_mag = 7893.51;
-  mpu9150.zero_adjust = Quaternion(-0.07, 0.67, -0.07, 0.73);
-  mpu9150.yaw_slope_rads_per_ms  = (2.7 / (10 * 60 * 1000)) * PI / 180;
-  mpu9150.yaw_actual_per_raw = (3600. / (3600 - 29.0 )); //1.0; // (360.*10.)/(360.*10.-328);// 1.00; // 1.004826221;
 #else
 #error "Car not defined for MPU"
 #endif
@@ -793,11 +758,7 @@ void loop() {
 
   blinker.execute();
 
-  #ifdef HAS_RX_AUX
-    rx_events.process_pulses(rx_str.pulse_us(), rx_esc.pulse_us(), rx_aux.pulse_us());
-  #else
-    rx_events.process_pulses(rx_str.pulse_us(), rx_esc.pulse_us(), 1500);
-  #endif
+  rx_events.process_pulses(rx_str.pulse_us(), rx_esc.pulse_us(), rx_aux.pulse_us());
   bool new_rx_event = rx_events.get_event();
   // send events through modes state machine
   if(new_rx_event) {
@@ -829,22 +790,12 @@ void loop() {
     modes.execute();
   }
 
-  #ifdef USE_CRSF
-    crsf.update(); // update as fast as possible, but use it less often
+  crsf.update(); // update as fast as possible, will call callbacks
 
-    if(every_n_ms(last_loop_ms, loop_ms, 10)) {
-      rx_str.set_from_crsf(crsf.rcToUs(crsf.getChannel(1))) ;
-      rx_esc.set_from_crsf(crsf.rcToUs(crsf.getChannel(2)));
-      rx_aux.set_from_crsf(crsf.rcToUs(crsf.getChannel(3)));
-    }
-    if(every_n_ms(last_loop_ms, loop_ms, 200)) {
-       crsf.telemetryWriteBattery(battery_sensor.v_bat * 100,0,0,0);
-       crsf.telemetryWriteCustomFlightMode(modes.current_task->name);
-    }
-
-  #endif
-
-
+  if(every_n_ms(last_loop_ms, loop_ms, 200)) {
+      crsf.telemetryWriteBattery(battery_sensor.v_bat * 100,0,0,0);
+      crsf.telemetryWriteCustomFlightMode(modes.current_task->name);
+  }
 
   if(every_n_ms(last_loop_ms, loop_ms, 10, 3)) {
     // read magnetometer
