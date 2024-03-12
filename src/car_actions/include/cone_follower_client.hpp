@@ -17,6 +17,8 @@ class ConeFollowerClient : public rclcpp::Node {
 
   using FollowCone = car_msgs::action::FollowCone;
   using GoalHandleFollowCone = rclcpp_action::ClientGoalHandle<FollowCone>;
+  std::shared_ptr<rclcpp_action::ClientGoalHandle<car_msgs::action::FollowCone>> goal_handle_;
+
 
   rclcpp_action::Client<FollowCone>::SharedPtr client_ptr_;
 
@@ -51,11 +53,21 @@ class ConeFollowerClient : public rclcpp::Node {
     return future;
   };
 
+  // cancel
+  void cancel_goal() {
+    if (!this->client_ptr_) {
+      return;
+    }
+    RCLCPP_INFO(this->get_logger(), "Cancelling goal");
+    this->client_ptr_->async_cancel_goal(this->goal_handle_);
+  }
+
   void goal_response_callback(const GoalHandleFollowCone::SharedPtr & goal_handle)
   {
     if (!goal_handle) {
       RCLCPP_ERROR(this->get_logger(), "Goal was rejected by server");
     } else {
+      goal_handle_ = goal_handle;
       RCLCPP_INFO(this->get_logger(), "Goal accepted by server, waiting for result");
     }
   }
