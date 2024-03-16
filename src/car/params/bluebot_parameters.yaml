@@ -1,0 +1,4 @@
+car:
+  ros__parameters:
+    robot_id: bluebot
+    camera_pitch_degrees: 2.0

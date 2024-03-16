@@ -1,0 +1,4 @@
+car:
+  ros__parameters:
+    robot_id: beebot
+    camera_pitch_degrees: 5.0

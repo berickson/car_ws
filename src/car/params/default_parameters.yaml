@@ -1,0 +1,24 @@
+car:
+  ros__parameters:
+    # for base_link->oak_rgb_camera_frame
+    camera_yaw_degrees: 0.0
+    camera_pitch_degrees: 0.0
+    camera_roll_degrees: 0.0
+    camera_x: 0.26
+    camera_y: 0.0
+    camera_z: 0.12
+    velocity_to_esc_lookup: [
+      -2.0, 1300.0,
+      -1.0, 1400.,
+      -0.1, 1450.,
+      0.0, 1501.,
+      0.1, 1550.,
+      0.5, 1560.,
+      2.0, 1570.,
+      3.3, 1630.,
+      4.1, 1680.,
+      5.0, 1710.,
+      7.0, 1827.,
+      9.5, 1895.,
+      20.0, 2000.
+    ]

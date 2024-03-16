@@ -48,6 +48,11 @@ endif()
 
 install(TARGETS
   car
-  DESTINATION lib/${PROJECT_NAME})
+  DESTINATION lib/${PROJECT_NAME}
+)
+
+install(DIRECTORY params/
+  DESTINATION share/${PROJECT_NAME}/params
+)
 
 ament_package()

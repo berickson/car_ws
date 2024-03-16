@@ -1,0 +1,4 @@
+car:
+  ros__parameters:
+    robot_id: "clearbot"
+    camera_pitch_degrees: 1.0

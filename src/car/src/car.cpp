@@ -58,6 +58,112 @@ class Car : public rclcpp::Node
     Car()
     : Node("car")
     {
+      {
+        // camera_yaw_degrees
+        auto param_desc = rcl_interfaces::msg::ParameterDescriptor{};
+        param_desc.description = "Camera yaw correctin`in degrees";
+        param_desc.type = rclcpp::ParameterType::PARAMETER_DOUBLE;
+        
+        rcl_interfaces::msg::FloatingPointRange range;
+        range.set__from_value(-90.0).set__to_value(90.0);
+
+        param_desc.floating_point_range= {range};
+
+        this->declare_parameter("camera_yaw_degrees", -2.5, param_desc);
+
+      }
+
+      {
+        // robot_id
+        auto param_desc = rcl_interfaces::msg::ParameterDescriptor{};
+        param_desc.description = "Unique name of this robot";
+        param_desc.type = rclcpp::ParameterType::PARAMETER_STRING;
+        this->declare_parameter("robot_id", "unknown", param_desc);
+      }
+
+      {
+        std::vector<double> default_velocity_to_esc_lookup          {
+            -2., 1300,  // {-2., 1200},
+            -1., 1400,  // {-1., 1250},
+            -.1, 1450,  // {-.1, 1326},
+            0.0, 1500,  // {0.0,  1500},
+            0.1, 1550,  // {0.1,  1610},
+            0.5, 1560,  // {0.5, 1620},
+            2.0, 1570,  // {2.0, 1671},
+            3.3, 1630,  // {3.3, 1700},
+            4.1, 1680,  // {4.1, 1744},
+            5, 1710,    // {5, 1770},
+            7, 1827,    // {7, 1887},
+            9.5, 1895,  // {9.5,1895},
+            20, 2000    // {20, 2000} 
+          };
+
+        // esc_for_velocity lookup table
+        auto param_desc = rcl_interfaces::msg::ParameterDescriptor{};
+        param_desc.description = "Lookup table for ESC signal for velocity [{v1,esc1},{v2,esc2},...]";  
+        this->declare_parameter<std::vector<double>>(
+          "velocity_to_esc_lookup",
+          default_velocity_to_esc_lookup, 
+          param_desc);
+      }
+
+      {
+        // camera_pitch_degrees
+        auto param_desc = rcl_interfaces::msg::ParameterDescriptor{};
+        param_desc.description = "Camera pitch correctin`in degrees";
+        param_desc.type = rclcpp::ParameterType::PARAMETER_DOUBLE;
+        
+        rcl_interfaces::msg::FloatingPointRange range;
+        range.set__from_value(-90.0).set__to_value(90.0);
+
+        param_desc.floating_point_range= {range};
+
+        this->declare_parameter("camera_pitch_degrees", -2.5, param_desc);
+
+      }
+
+      {
+        // camera_roll_degrees
+        auto param_desc = rcl_interfaces::msg::ParameterDescriptor{};
+        param_desc.description = "Camera roll `in degrees";
+        param_desc.type = rclcpp::ParameterType::PARAMETER_DOUBLE;
+        
+        rcl_interfaces::msg::FloatingPointRange range;
+        range.set__from_value(-90.0).set__to_value(90.0);
+
+        param_desc.floating_point_range= {range};
+
+        this->declare_parameter("camera_roll_degrees", -2.5, param_desc);
+      }
+
+
+      {
+        // camera_x
+        auto param_desc = rcl_interfaces::msg::ParameterDescriptor{};
+        param_desc.description = "Tf x distance from base_link to camera in meters";
+        param_desc.type = rclcpp::ParameterType::PARAMETER_DOUBLE;
+        
+        this->declare_parameter("camera_x", 0.26, param_desc);
+      }
+
+      {
+        // camera_y
+        auto param_desc = rcl_interfaces::msg::ParameterDescriptor{};
+        param_desc.description = "Tf y distance from base_link to camera in meters";
+        param_desc.type = rclcpp::ParameterType::PARAMETER_DOUBLE;
+
+        this->declare_parameter("camera_y", 0.0, param_desc);
+      }
+
+      {
+        // camera_z
+        auto param_desc = rcl_interfaces::msg::ParameterDescriptor{};
+        param_desc.description = "Tf z distance from base_link to camera in meters";
+        param_desc.type = rclcpp::ParameterType::PARAMETER_DOUBLE;
+
+        this->declare_parameter("camera_z", 0.120, param_desc);
+      }
+
 
       {
         auto param_desc = rcl_interfaces::msg::ParameterDescriptor{};
@@ -72,7 +178,6 @@ class Car : public rclcpp::Node
         this->declare_parameter("velocity_k_p", 2.0, param_desc);
       }
 
-
       {
         auto param_desc = rcl_interfaces::msg::ParameterDescriptor{};
         param_desc.description = "Velocity PID k_a term";
@@ -85,6 +190,9 @@ class Car : public rclcpp::Node
 
         this->declare_parameter("velocity_k_a", 0.3, param_desc);
       }
+
+      param_callback_handle_ = this->add_on_set_parameters_callback(
+      std::bind(&Car::param_callback, this, std::placeholders::_1));
 
       front_right_wheel_.meters_per_tick = front_right_meters_per_odometer_tick;
       front_left_wheel_.meters_per_tick = front_left_meters_per_odometer_tick;
@@ -121,6 +229,11 @@ class Car : public rclcpp::Node
     int steering_for_curvature(Angle theta_per_meter) const;
     Angle angle_for_steering(int str);
     void car_update_topic_callback(const car_msgs::msg::Update::SharedPtr d);
+
+    rclcpp::node_interfaces::OnSetParametersCallbackHandle::SharedPtr param_callback_handle_;
+    rcl_interfaces::msg::SetParametersResult param_callback(
+        const std::vector<rclcpp::Parameter> & parameters);
+
 
     int32_t update_count_ = 0;
 
@@ -179,6 +292,8 @@ class Car : public rclcpp::Node
 
       ackermann_.reset();
     }
+
+    
 
     car_msgs::msg::Speedometer::SharedPtr speedometer_message;
 
@@ -245,6 +360,20 @@ Angle Car::angle_for_steering(int str) {
                               {1929, -30}});
 
   return Angle::degrees(t.lookup(str));
+}
+
+rcl_interfaces::msg::SetParametersResult Car::param_callback(
+  const std::vector<rclcpp::Parameter> & parameters)
+{
+  rcl_interfaces::msg::SetParametersResult result;
+  result.successful = true;
+
+  for (const auto & parameter : parameters) {
+    if (parameter.get_name() == "velocity_k_p") {
+      velocity_pid.k_p = parameter.as_double();
+    }
+  }
+  return result;
 }
 
 void Car::car_update_topic_callback(const car_msgs::msg::Update::SharedPtr d){
@@ -370,15 +499,33 @@ void Car::car_update_topic_callback(const car_msgs::msg::Update::SharedPtr d){
     // base_link->oak_rgb_camera_frame
     {
       tf2::Quaternion q;
-      q.setRPY(0, -0.0*M_PI/180, -2.5*M_PI/180.0);
+      double camera_yaw_degrees;
+      get_parameter<double>("camera_yaw_degrees", camera_yaw_degrees);
+
+      double camera_pitch_degrees = 0.0;
+      get_parameter<double>("camera_pitch_degrees", camera_pitch_degrees);
+
+      double camera_roll_degrees = 0.0;
+      get_parameter<double>("camera_roll_degrees", camera_roll_degrees);
+
+      double camera_x = 0.26;
+      get_parameter<double>("camera_x", camera_x);
+
+      double camera_y = 0.0;
+      get_parameter<double>("camera_y", camera_y);
+
+      double camera_z = 0.12;
+      get_parameter<double>("camera_z", camera_z);
+      
+      q.setRPY(camera_roll_degrees * M_PI/180, camera_pitch_degrees*M_PI/180, camera_yaw_degrees*M_PI/180.0);
       geometry_msgs::msg::TransformStamped tf_msg;
 
       tf_msg.header.frame_id = "base_link";
       tf_msg.child_frame_id = "oak_rgb_camera_frame";
       tf_msg.header.stamp = stamp;
-      tf_msg.transform.translation.x = 0.26;
-      tf_msg.transform.translation.y = 0.0;
-      tf_msg.transform.translation.z = 0.12;
+      tf_msg.transform.translation.x = camera_x;
+      tf_msg.transform.translation.y = camera_y;
+      tf_msg.transform.translation.z = camera_z;
       tf_msg.transform.rotation.x = q.x();
       tf_msg.transform.rotation.y = q.y();
       tf_msg.transform.rotation.z = q.z();
