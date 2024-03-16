@@ -11,7 +11,7 @@ using namespace std::placeholders;
 
 
 float x_fov_degrees = 69;
-int x_resolution = 640;
+int x_resolution = 1200;
 
 class cone_follower_node : public rclcpp::Node {
 public:

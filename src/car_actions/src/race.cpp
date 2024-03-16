@@ -133,12 +133,10 @@ void back_up(float meters, float speed = 0.5, float time_allowance = 5.0) {
 
 int main(int argc, char** argv) {
   rclcpp::init(argc, argv);
-  goto_pose("base_link", 1.0, 1.0, 45.0);
   goto_cone();
   back_up(1.0);
   goto_cone();
   goto_pose("base_link", -1.0, 0.0, 0.0);
-  goto_pose("map", 0.0, 0.0, 0.0);
   return 0;
   /*
   // create ConeFollowerClient node

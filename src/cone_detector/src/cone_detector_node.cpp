@@ -18,6 +18,7 @@
 #include "depthai/pipeline/node/ColorCamera.hpp"
 #include "depthai/pipeline/node/DetectionNetwork.hpp"
 #include "depthai/pipeline/node/XLinkOut.hpp"
+#include "depthai/pipeline/node/ImageManip.hpp"
 
 dai::Pipeline createPipeline(bool syncNN, std::string nnPath) {
     dai::Pipeline pipeline;
@@ -26,10 +27,17 @@ dai::Pipeline createPipeline(bool syncNN, std::string nnPath) {
     auto detectionNetwork = pipeline.create<dai::node::YoloDetectionNetwork>();  // Use YoloDetectionNetwork
     auto nnOut = pipeline.create<dai::node::XLinkOut>();
 
+    auto imageManip = pipeline.create<dai::node::ImageManip>();
+    imageManip->setMaxOutputFrameSize(640*640*3);
+    imageManip->initialConfig.setResize(640, 640);
+    imageManip->initialConfig.setFrameType(dai::RawImgFrame::Type::BGR888p);
+
+
     xlinkOut->setStreamName("preview");
     nnOut->setStreamName("detections");
 
-    colorCam->setPreviewSize(640, 640);  // Set input size to 640x640 for YOLOv8n
+    colorCam->setPreviewSize(1200, 640);  // Set input size to 640x640 for YOLOv8n
+    //colorCam->setPreviewSize(1920, 1080);  // Set input size to 640x640 for YOLOv8n
     colorCam->setResolution(dai::ColorCameraProperties::SensorResolution::THE_1080_P);
     colorCam->setInterleaved(false);
     colorCam->setColorOrder(dai::ColorCameraProperties::ColorOrder::BGR);
@@ -48,12 +56,13 @@ dai::Pipeline createPipeline(bool syncNN, std::string nnPath) {
 
     detectionNetwork->setNumClasses(1);  // Set number of classes to 1 for "cone"
 
-    // Link plugins CAM -> NN -> XLINK
-    colorCam->preview.link(detectionNetwork->input);
-    if(syncNN)
-        detectionNetwork->passthrough.link(xlinkOut->input);
-    else
-        colorCam->preview.link(xlinkOut->input);
+    // Link plugins CAM -> PREVIEW -> XLINK
+    //              CAM -> IMAGE_MANIP -> NN
+    colorCam->preview.link(xlinkOut->input);
+    colorCam->preview.link(imageManip->inputImage);
+    imageManip->out.link(detectionNetwork->input);
+
+    //detectionNetwork->passthrough.link(imageManip->out);
 
     detectionNetwork->out.link(nnOut->input);
     return pipeline;
@@ -115,7 +124,7 @@ int main(int argc, char** argv) {
                                                                                        color_uri,
                                                                                        "color");
 
-    dai::rosBridge::ImgDetectionConverter detConverter(tfPrefix + "_rgb_camera_optical_frame", 640, 640, false);
+    dai::rosBridge::ImgDetectionConverter detConverter(tfPrefix + "_rgb_camera_optical_frame", 1200, 640, false);
     dai::rosBridge::BridgePublisher<vision_msgs::msg::Detection2DArray, dai::ImgDetections> detectionPublish(
         nNetDataQueue,
         node,

@@ -342,7 +342,7 @@ void Car::car_update_topic_callback(const car_msgs::msg::Update::SharedPtr d){
       tf_msg.header.stamp = stamp;
       tf_msg.transform.translation.x = 0.0;
       tf_msg.transform.translation.y = 0.0;
-      tf_msg.transform.translation.z = 0.0;
+      tf_msg.transform.translation.z = 0.06;
       tf_msg.transform.rotation.x = q.x();
       tf_msg.transform.rotation.y = q.y();
       tf_msg.transform.rotation.z = q.z();
@@ -357,15 +357,57 @@ void Car::car_update_topic_callback(const car_msgs::msg::Update::SharedPtr d){
       tf_msg.header.frame_id = "base_link";
       tf_msg.child_frame_id = "laser_scanner_link";
       tf_msg.header.stamp = stamp;
-      tf_msg.transform.translation.x = 0.19;
+      tf_msg.transform.translation.x = 0.15;
       tf_msg.transform.translation.y = 0.0;
-      tf_msg.transform.translation.z = 0.22;
+      tf_msg.transform.translation.z = 0.18;
       tf_msg.transform.rotation.x = 0.0;
       tf_msg.transform.rotation.y = 1.0;
       tf_msg.transform.rotation.z = 0.0;
       tf_msg.transform.rotation.w = 0.0;
       tf_msgs.push_back(tf_msg);
     }
+
+    // base_link->oak_rgb_camera_frame
+    {
+      tf2::Quaternion q;
+      q.setRPY(0, -0.0*M_PI/180, -2.5*M_PI/180.0);
+      geometry_msgs::msg::TransformStamped tf_msg;
+
+      tf_msg.header.frame_id = "base_link";
+      tf_msg.child_frame_id = "oak_rgb_camera_frame";
+      tf_msg.header.stamp = stamp;
+      tf_msg.transform.translation.x = 0.26;
+      tf_msg.transform.translation.y = 0.0;
+      tf_msg.transform.translation.z = 0.12;
+      tf_msg.transform.rotation.x = q.x();
+      tf_msg.transform.rotation.y = q.y();
+      tf_msg.transform.rotation.z = q.z();
+      tf_msg.transform.rotation.w = q.w();
+      tf_msgs.push_back(tf_msg);
+    }
+
+    // oak_rgb_camera_frame->oak_rgb_camera_optical_frame
+    //
+    // Camera optics use a weird orientation that is x goes to the right
+    // and y goes down. This frame handles that.
+    {
+      tf2::Quaternion q;
+      q.setRPY(-M_PI/2.0, 0, -M_PI/2.0);
+      geometry_msgs::msg::TransformStamped tf_msg;
+
+      tf_msg.header.frame_id = "oak_rgb_camera_frame";
+      tf_msg.child_frame_id = "oak_rgb_camera_optical_frame";
+      tf_msg.header.stamp = stamp;
+      tf_msg.transform.translation.x = 0.0;
+      tf_msg.transform.translation.y = 0.0;
+      tf_msg.transform.translation.z = 0.0;
+      tf_msg.transform.rotation.x = q.x();
+      tf_msg.transform.rotation.y = q.y();
+      tf_msg.transform.rotation.z = q.z();
+      tf_msg.transform.rotation.w = q.w();
+      tf_msgs.push_back(tf_msg);
+    }
+
     tf_broadcaster_->sendTransform(tf_msgs);
 
 
