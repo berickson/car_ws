@@ -61,7 +61,7 @@ class Car : public rclcpp::Node
       {
         // camera_yaw_degrees
         auto param_desc = rcl_interfaces::msg::ParameterDescriptor{};
-        param_desc.description = "Camera yaw correctin`in degrees";
+        param_desc.description = "Camera yaw correction in degrees";
         param_desc.type = rclcpp::ParameterType::PARAMETER_DOUBLE;
         
         rcl_interfaces::msg::FloatingPointRange range;
@@ -110,7 +110,7 @@ class Car : public rclcpp::Node
       {
         // camera_pitch_degrees
         auto param_desc = rcl_interfaces::msg::ParameterDescriptor{};
-        param_desc.description = "Camera pitch correctin`in degrees";
+        param_desc.description = "Camera pitch correction in degrees";
         param_desc.type = rclcpp::ParameterType::PARAMETER_DOUBLE;
         
         rcl_interfaces::msg::FloatingPointRange range;
@@ -125,7 +125,7 @@ class Car : public rclcpp::Node
       {
         // camera_roll_degrees
         auto param_desc = rcl_interfaces::msg::ParameterDescriptor{};
-        param_desc.description = "Camera roll `in degrees";
+        param_desc.description = "Camera roll correction in degrees";
         param_desc.type = rclcpp::ParameterType::PARAMETER_DOUBLE;
         
         rcl_interfaces::msg::FloatingPointRange range;
@@ -164,6 +164,34 @@ class Car : public rclcpp::Node
         this->declare_parameter("camera_z", 0.120, param_desc);
       }
 
+      {
+        // front_left_meters_per_tick
+        auto param_desc = rcl_interfaces::msg::ParameterDescriptor{};
+        param_desc.description = "Meters per tick for front left wheel";
+        param_desc.type = rclcpp::ParameterType::PARAMETER_DOUBLE;
+        
+        this->declare_parameter("front_left_meters_per_tick", 0.002432, param_desc);
+      }
+
+      {
+        // front_right_meters_per_tick
+        auto param_desc = rcl_interfaces::msg::ParameterDescriptor{};
+        param_desc.description = "Meters per tick for front right wheel";
+        param_desc.type = rclcpp::ParameterType::PARAMETER_DOUBLE;
+        
+        this->declare_parameter("front_right_meters_per_tick", 0.002432, param_desc);
+      }
+
+
+      {
+        // motor_meters_per_tick
+        auto param_desc = rcl_interfaces::msg::ParameterDescriptor{};
+        param_desc.description = "Meters per tick for motor sensor";
+        param_desc.type = rclcpp::ParameterType::PARAMETER_DOUBLE;
+        
+        this->declare_parameter("motor_meters_per_tick", 0.002650, param_desc);
+      }
+
 
       {
         auto param_desc = rcl_interfaces::msg::ParameterDescriptor{};
@@ -194,9 +222,11 @@ class Car : public rclcpp::Node
       param_callback_handle_ = this->add_on_set_parameters_callback(
       std::bind(&Car::param_callback, this, std::placeholders::_1));
 
-      front_right_wheel_.meters_per_tick = front_right_meters_per_odometer_tick;
-      front_left_wheel_.meters_per_tick = front_left_meters_per_odometer_tick;
-      motor_.meters_per_tick = motor_meters_per_odometer_tick;
+      // read parameters
+      this->get_parameter("front_left_meters_per_tick", front_left_wheel_.meters_per_tick);
+      this->get_parameter("front_right_meters_per_tick", front_right_wheel_.meters_per_tick);
+      this->get_parameter("motor_meters_per_tick", motor_.meters_per_tick);
+
 
       fl_speedometer_publisher_ = this->create_publisher<car_msgs::msg::Speedometer> ("/car/speedometers/fl", 10);
       fr_speedometer_publisher_ = this->create_publisher<car_msgs::msg::Speedometer> ("/car/speedometers/fr", 10);
@@ -239,10 +269,10 @@ class Car : public rclcpp::Node
 
     // car constants for blue-crash
     // todo: get from parameter server
-    const float front_left_meters_per_odometer_tick = 0.002432;
-    const float front_right_meters_per_odometer_tick = 0.002434;
+    //const float front_left_meters_per_odometer_tick = 0.002432;
+    //const float front_right_meters_per_odometer_tick = 0.002434;
     // const float rear_meters_per_odometer_tick = 0.00146;
-    const float motor_meters_per_odometer_tick = 0.002650; // Blue
+    //const float motor_meters_per_odometer_tick = 0.002650; // Blue
     //const float motor_meters_per_odometer_tick = 0.00176; // Seth
     const float front_wheelbase_width_in_meters = 0.2413;
     const float rear_wheelbase_width_in_meters = 0.2667;
