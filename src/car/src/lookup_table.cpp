@@ -3,11 +3,40 @@
 #include <array>
 #include "geometry.h"
 #include <iostream>
+// include rclcpp for logging
+#include "rclcpp/rclcpp.hpp"
 
 LookupTable::LookupTable(vector<array<double, 2> > table)
   : table(table)
 {
 
+}
+
+LookupTable::LookupTable(vector<double> flattened_table) {
+  // Get the logger for "car"
+  auto logger = rclcpp::get_logger("car");
+
+  // ensure that the flattened table has an even number of elements
+  if (flattened_table.size() % 2 != 0) {
+    RCLCPP_ERROR(logger, "flattened_table must have an even number of elements");
+    return;
+  }
+  // ensure that the flattened table has at least 2 elements
+  if (flattened_table.size() < 2) {
+    RCLCPP_ERROR(logger, "flattened_table must have at least 2 elements");
+    return;
+  }
+  // ensure that the flattened table is sorted
+  for (unsigned i = 0; i < flattened_table.size()-2; i+=2) {
+    if (flattened_table[i] >= flattened_table[i+2]) {
+      RCLCPP_ERROR(logger, "flattened_table must be sorted");
+      return;
+    }
+  }
+
+  for (unsigned i = 0; i < flattened_table.size(); i+=2) {
+    table.push_back({flattened_table[i],flattened_table[i+1]});
+  }
 }
 
 double LookupTable::lookup(double v) const {

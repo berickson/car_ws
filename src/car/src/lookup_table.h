@@ -8,6 +8,7 @@ class LookupTable
 {
 public:
   LookupTable(vector<array<double, 2> > table);
+  LookupTable(vector<double> flattened_table);
   vector<array<double,2>> table;
   double lookup(double v) const;
 };

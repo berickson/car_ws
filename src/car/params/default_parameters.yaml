@@ -12,19 +12,38 @@ car:
     front_right_meters_per_tick: 0.002434
     motor_meters_per_tick: 0.002650
 
+    # terminal velocity in m/s vs esc microseconds
+    # velocities must be ascending floats
     velocity_to_esc_lookup: [
       -2.0, 1300.0,
-      -1.0, 1400.,
-      -0.1, 1450.,
-      0.0, 1501.,
-      0.1, 1550.,
-      0.5, 1560.,
-      2.0, 1570.,
-      3.3, 1630.,
-      4.1, 1680.,
-      5.0, 1710.,
-      7.0, 1827.,
-      9.5, 1895.,
+      -1.0, 1400.0,
+      -0.1, 1450.0,
+      0.0, 1501.0,
+      0.1, 1550.0,
+      0.5, 1560.0,
+      2.0, 1570.0,
+      3.3, 1630.0,
+      4.1, 1680.0,
+      5.0, 1710.0,
+      7.0, 1827.0,
+      9.5, 1895.0,
       20.0, 2000.
     ]
     
+    # degrees the car turns in one meter vs str microseconds
+    # curvatures must be ascending floats
+    curvature_to_str_lookup: [
+      -85.1, 1929.0,
+      -71.9, 1839.0,
+      -58.2, 1794.0,
+      -44.1, 1759.0,
+      -29.6, 1678.0,
+      -14.8, 1599.0,
+      0.0, 1521.0,
+      14.8, 1461.0,
+      29.6, 1339.0,
+      44.0, 1306.0,
+      58.2, 1260.0,
+      71.9, 1175.0,
+      85.1, 1071.0 
+    ]

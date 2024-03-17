@@ -87,7 +87,18 @@
         "coroutine": "cpp",
         "source_location": "cpp",
         "ranges": "cpp",
-        "valarray": "cpp"
+        "valarray": "cpp",
+        "charconv": "cpp",
+        "csetjmp": "cpp",
+        "cuchar": "cpp",
+        "rope": "cpp",
+        "slist": "cpp",
+        "scoped_allocator": "cpp",
+        "barrier": "cpp",
+        "netfwd": "cpp",
+        "latch": "cpp",
+        "span": "cpp",
+        "syncstream": "cpp"
     },
     "python.analysis.extraPaths": [
         "/opt/ros/humble/lib/python3.10/site-packages/"

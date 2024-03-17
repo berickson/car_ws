@@ -25,24 +25,6 @@ using std::placeholders::_1;
 using std::placeholders::_2;
 
 
-int esc_for_velocity(double v) {
-  static const LookupTable t({
-      {-2., 1300},  // {-2., 1200},
-      {-1., 1400},  // {-1., 1250},
-      {-.1, 1450},  // {-.1, 1326},
-      {0.0, 1500},  // {0.0,  1500},
-      {0.1, 1550},  // {0.1,  1610},
-      {0.5, 1560},  // {0.5, 1620},
-      {2.0, 1570},  // {2.0, 1671},
-      {3.3, 1630},  // {3.3, 1700},
-      {4.1, 1680},  // {4.1, 1744},
-      {5, 1710},    // {5, 1770},
-      {7, 1827},    // {7, 1887},
-      {9.5, 1895},  // {9.5,1895},
-      {20, 2000}    // {20, 2000}
-  });
-  return t.lookup(v);
-}
 
 class Car : public rclcpp::Node
 {
@@ -104,6 +86,31 @@ class Car : public rclcpp::Node
         this->declare_parameter<std::vector<double>>(
           "velocity_to_esc_lookup",
           default_velocity_to_esc_lookup, 
+          param_desc);
+      }
+      {
+        // curvature_to_str_lookup_table
+        std::vector<double> default_curvature_to_str_lookup {
+          -85.1, 1929.0,
+          -71.9, 1839.0,
+          -58.2, 1794.0,
+          -44.1, 1759.0,
+          -29.6, 1678.0,
+          -14.8, 1599.0,
+          0.0, 1521.0,
+          14.8, 1461.0,
+          29.6, 1339.0,
+          44.0, 1306.0,
+          58.2, 1260.0,
+          71.9, 1175.0,
+          85.1, 1071.0 
+        };
+
+        auto param_desc = rcl_interfaces::msg::ParameterDescriptor{};
+        param_desc.description = "Lookup table for steering signal for curvature [{curvature1,str1},{curvature2,str2},...]";
+        this->declare_parameter<std::vector<double>>(
+          "curvature_to_str_lookup",
+          default_curvature_to_str_lookup, 
           param_desc);
       }
 
@@ -219,13 +226,21 @@ class Car : public rclcpp::Node
         this->declare_parameter("velocity_k_a", 0.3, param_desc);
       }
 
-      param_callback_handle_ = this->add_on_set_parameters_callback(
-      std::bind(&Car::param_callback, this, std::placeholders::_1));
+      parameters_callback_handle_ = this->add_on_set_parameters_callback(
+      std::bind(&Car::parameters_callback, this, std::placeholders::_1));
 
       // read parameters
       this->get_parameter("front_left_meters_per_tick", front_left_wheel_.meters_per_tick);
       this->get_parameter("front_right_meters_per_tick", front_right_wheel_.meters_per_tick);
       this->get_parameter("motor_meters_per_tick", motor_.meters_per_tick);
+
+      vector<double> velocity_to_esc_vector;
+      this->get_parameter("velocity_to_esc_lookup", velocity_to_esc_vector);
+      velocity_to_esc_lookup_table = std::make_unique<LookupTable>(velocity_to_esc_vector);
+
+      vector<double> curvature_to_str_vector  ;
+      this->get_parameter("curvature_to_str_lookup", curvature_to_str_vector);
+      curvature_to_str_lookup_table = std::make_unique<LookupTable>(curvature_to_str_vector);
 
 
       fl_speedometer_publisher_ = this->create_publisher<car_msgs::msg::Speedometer> ("/car/speedometers/fl", 10);
@@ -254,14 +269,19 @@ class Car : public rclcpp::Node
   private:
     float esc_us_float = 1500;
     float str_us_float = 1500;
+    std::unique_ptr<LookupTable> curvature_to_str_lookup_table;
+    std::unique_ptr<LookupTable> velocity_to_esc_lookup_table;
 
-    int steering_for_angle(Angle theta);
+
+
     int steering_for_curvature(Angle theta_per_meter) const;
+    int esc_for_velocity(double v) const;
+
     Angle angle_for_steering(int str);
     void car_update_topic_callback(const car_msgs::msg::Update::SharedPtr d);
 
-    rclcpp::node_interfaces::OnSetParametersCallbackHandle::SharedPtr param_callback_handle_;
-    rcl_interfaces::msg::SetParametersResult param_callback(
+    rclcpp::node_interfaces::OnSetParametersCallbackHandle::SharedPtr parameters_callback_handle_;
+    rcl_interfaces::msg::SetParametersResult parameters_callback(
         const std::vector<rclcpp::Parameter> & parameters);
 
 
@@ -269,11 +289,6 @@ class Car : public rclcpp::Node
 
     // car constants for blue-crash
     // todo: get from parameter server
-    //const float front_left_meters_per_odometer_tick = 0.002432;
-    //const float front_right_meters_per_odometer_tick = 0.002434;
-    // const float rear_meters_per_odometer_tick = 0.00146;
-    //const float motor_meters_per_odometer_tick = 0.002650; // Blue
-    //const float motor_meters_per_odometer_tick = 0.00176; // Seth
     const float front_wheelbase_width_in_meters = 0.2413;
     const float rear_wheelbase_width_in_meters = 0.2667;
     const float wheelbase_length_in_meters = 0.33655;
@@ -336,43 +351,25 @@ class Car : public rclcpp::Node
     rclcpp::Service<std_srvs::srv::Empty>::SharedPtr reset_service_;
 };
 
+
 int Car::steering_for_curvature(Angle theta_per_meter) const {
-  static const LookupTable t({{-85.1, 1929},
-                              {-71.9, 1839},
-                              {-58.2, 1794},
-                              {-44.1, 1759},
-                              {-29.6, 1678},
-                              {-14.8, 1599},
-                              {0, 1521},
-                              {14.8, 1461},
-                              {29.6, 1339},
-                              {44.0, 1306},
-                              {58.2, 1260},
-                              {71.9, 1175},
-                              {85.1, 1071}
-
-  });
-  return (int)t.lookup(theta_per_meter.degrees());
+  if(curvature_to_str_lookup_table) {
+    return (int)curvature_to_str_lookup_table->lookup(theta_per_meter.degrees());
+  } else {
+    RCLCPP_ERROR_ONCE(rclcpp::get_logger("car"), "steering_for_curvature() called with no curvature_to_str_lookup_table set. Using safe value of 1500.");
+    return 1500;
+  }
 }
 
-int Car::steering_for_angle(Angle theta) {
-  static const LookupTable t({{-30, 1929},
-                              {-25, 1839},
-                              {-20, 1794},
-                              {-15, 1759},
-                              {-10, 1678},
-                              {-5, 1599},
-                              {0, 1521},
-                              {5, 1461},
-                              {10, 1339},
-                              {15, 1306},
-                              {20, 1260},
-                              {25, 1175},
-                              {30, 1071}
-
-  });
-  return (int)t.lookup(theta.degrees());
+int Car::esc_for_velocity(double v)  const {
+  if(velocity_to_esc_lookup_table) {
+    return velocity_to_esc_lookup_table->lookup(v);
+  } else {
+    RCLCPP_ERROR_ONCE(rclcpp::get_logger("car"), "esc_for_velocity() called with no velocity_to_esc_lookup_table set. Using safe value of 1500.");
+    return 1500;
+  }
 }
+
 
 Angle Car::angle_for_steering(int str) {
   static const LookupTable t({{1071, 30},
@@ -392,7 +389,7 @@ Angle Car::angle_for_steering(int str) {
   return Angle::degrees(t.lookup(str));
 }
 
-rcl_interfaces::msg::SetParametersResult Car::param_callback(
+rcl_interfaces::msg::SetParametersResult Car::parameters_callback(
   const std::vector<rclcpp::Parameter> & parameters)
 {
   rcl_interfaces::msg::SetParametersResult result;
@@ -401,6 +398,16 @@ rcl_interfaces::msg::SetParametersResult Car::param_callback(
   for (const auto & parameter : parameters) {
     if (parameter.get_name() == "velocity_k_p") {
       velocity_pid.k_p = parameter.as_double();
+      continue;
+    }
+    if (parameter.get_name() == "velocity_to_esc_lookup") {
+      velocity_to_esc_lookup_table = std::make_unique<LookupTable>(parameter.as_double_array());
+      continue;
+    }
+
+    if (parameter.get_name() == "curvature_to_str_lookup") {
+      curvature_to_str_lookup_table = std::make_unique<LookupTable>(parameter.as_double_array());
+      continue;
     }
   }
   return result;
@@ -439,6 +446,7 @@ void Car::car_update_topic_callback(const car_msgs::msg::Update::SharedPtr d){
     } else if (update_count_ > 2) {
         double wheel_distance_meters = fr.meters - last_fr_.meters;
         if(fabs(wheel_distance_meters)>0) {
+            // todo: use the ackermann model to calculate the outside wheel angle
             Angle outside_wheel_angle = angle_for_steering(d->rx_str);
             ackermann_.move_right_wheel(outside_wheel_angle, wheel_distance_meters,
                                     yaw);
