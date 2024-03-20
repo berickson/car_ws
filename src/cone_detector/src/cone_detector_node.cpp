@@ -10,6 +10,7 @@
 #include "rclcpp/node.hpp"
 #include "sensor_msgs/msg/image.hpp"
 #include "vision_msgs/msg/detection2_d_array.hpp"
+#include <ament_index_cpp/get_package_share_directory.hpp>
 
 // Inludes common necessary includes for development using depthai library
 #include "depthai/device/DataQueue.hpp"
@@ -88,9 +89,11 @@ int main(int argc, char** argv) {
     node->get_parameter("camera_param_uri", cameraParamUri);
     node->get_parameter("sync_nn", syncNN);
     node->get_parameter("resourceBaseFolder", resourceBaseFolder);
+    resourceBaseFolder = ament_index_cpp::get_package_share_directory("cone_detector");
+    resourceBaseFolder = resourceBaseFolder + "/resources";
 
     if(resourceBaseFolder.empty()) {
-        throw std::runtime_error("Send the path to the resouce folder containing NNBlob in \'resourceBaseFolder\' ");
+        throw std::runtime_error("resourceBaseFolder is empty: Send the path to the resource folder containing NNBlob in \'resourceBaseFolder\' parameter");
     }
     // Uses the path from param if passed or else uses from BLOB_PATH from CMAKE
     std::string nnParam;

@@ -15,6 +15,8 @@ def generate_launch_description():
 
     default_resources_path = os.path.join(cone_detector_path,
                                 'resources')
+    
+    print(f"Default resources path: {default_resources_path}")
     tf_prefix    = LaunchConfiguration('tf_prefix',     default = 'oak')
     base_frame   = LaunchConfiguration('base_frame',    default = 'oak-d_frame')
     parent_frame = LaunchConfiguration('parent_frame',  default = 'oak-d-base-frame')
@@ -43,7 +45,7 @@ def generate_launch_description():
                         {'camera_param_uri': camera_param_uri},
                         {'sync_nn': sync_nn},
                         {'nnName': nnName},
-                        {'resourceBaseFolder': resourceBaseFolder},
+                        {'resourceBaseFolder': default_resources_path},
                         {'monoResolution': monoResolution},
                         {'spatial_camera': spatial_camera}])
 
