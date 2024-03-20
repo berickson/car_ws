@@ -1,4 +1,10 @@
 car:
   ros__parameters:
     robot_id: bluebot
-    camera_pitch_degrees: 2.0
+    camera_pitch_degrees: -1.5
+    camera_yaw_degrees: -2.0
+    camera_roll_degrees: 1.0
+    camera_x: 0.26
+    camera_z: 0.1
+    lidar_x: 0.17
+    lidar_z: 0.175

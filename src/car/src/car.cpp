@@ -40,20 +40,7 @@ class Car : public rclcpp::Node
     Car()
     : Node("car")
     {
-      {
-        // camera_yaw_degrees
-        auto param_desc = rcl_interfaces::msg::ParameterDescriptor{};
-        param_desc.description = "Camera yaw correction in degrees";
-        param_desc.type = rclcpp::ParameterType::PARAMETER_DOUBLE;
-        
-        rcl_interfaces::msg::FloatingPointRange range;
-        range.set__from_value(-90.0).set__to_value(90.0);
 
-        param_desc.floating_point_range= {range};
-
-        this->declare_parameter("camera_yaw_degrees", -2.5, param_desc);
-
-      }
 
       {
         // robot_id
@@ -115,6 +102,21 @@ class Car : public rclcpp::Node
       }
 
       {
+        // camera_yaw_degrees
+        auto param_desc = rcl_interfaces::msg::ParameterDescriptor{};
+        param_desc.description = "Camera yaw correction in degrees";
+        param_desc.type = rclcpp::ParameterType::PARAMETER_DOUBLE;
+        
+        rcl_interfaces::msg::FloatingPointRange range;
+        range.set__from_value(-90.0).set__to_value(90.0);
+
+        param_desc.floating_point_range= {range};
+
+        this->declare_parameter("camera_yaw_degrees", -2.5, param_desc);
+
+      }
+
+      {
         // camera_pitch_degrees
         auto param_desc = rcl_interfaces::msg::ParameterDescriptor{};
         param_desc.description = "Camera pitch correction in degrees";
@@ -169,6 +171,32 @@ class Car : public rclcpp::Node
         param_desc.type = rclcpp::ParameterType::PARAMETER_DOUBLE;
 
         this->declare_parameter("camera_z", 0.120, param_desc);
+      }
+      {
+        // lidar_x
+        auto param_desc = rcl_interfaces::msg::ParameterDescriptor{};
+        param_desc.description = "Tf x distance from base_link to lidar in meters";
+        param_desc.type = rclcpp::ParameterType::PARAMETER_DOUBLE;
+        
+        this->declare_parameter("lidar_x", 0.17, param_desc);
+      }
+
+      {
+        // lidar_y
+        auto param_desc = rcl_interfaces::msg::ParameterDescriptor{};
+        param_desc.description = "Tf y distance from base_link to lidar in meters";
+        param_desc.type = rclcpp::ParameterType::PARAMETER_DOUBLE;
+
+        this->declare_parameter("lidar_y", 0.0, param_desc);
+      }
+
+      {
+        // lidar_z
+        auto param_desc = rcl_interfaces::msg::ParameterDescriptor{};
+        param_desc.description = "Tf z distance from base_link to lidar in meters";
+        param_desc.type = rclcpp::ParameterType::PARAMETER_DOUBLE;
+
+        this->declare_parameter("lidar_z", 0.175, param_desc);
       }
 
       {
@@ -519,14 +547,26 @@ void Car::car_update_topic_callback(const car_msgs::msg::Update::SharedPtr d){
 
     // base_link->laser_scanner_link
     {
+
+      double lidar_x = 0.0;
+      get_parameter<double>("lidar_x", lidar_x);
+
+      double lidar_y = 0.0;
+      get_parameter<double>("lidar_y", lidar_y);
+
+      double lidar_z = 0.0;
+      get_parameter<double>("lidar_z", lidar_z);
+
       geometry_msgs::msg::TransformStamped tf_msg;
+
+      
 
       tf_msg.header.frame_id = "base_link";
       tf_msg.child_frame_id = "laser_scanner_link";
       tf_msg.header.stamp = stamp;
-      tf_msg.transform.translation.x = 0.15;
-      tf_msg.transform.translation.y = 0.0;
-      tf_msg.transform.translation.z = 0.18;
+      tf_msg.transform.translation.x = lidar_x;
+      tf_msg.transform.translation.y = lidar_y;
+      tf_msg.transform.translation.z = lidar_z;
       tf_msg.transform.rotation.x = 0.0;
       tf_msg.transform.rotation.y = 1.0;
       tf_msg.transform.rotation.z = 0.0;
@@ -540,21 +580,21 @@ void Car::car_update_topic_callback(const car_msgs::msg::Update::SharedPtr d){
       double camera_yaw_degrees;
       get_parameter<double>("camera_yaw_degrees", camera_yaw_degrees);
 
-      double camera_pitch_degrees = 0.0;
+      double camera_pitch_degrees;
       get_parameter<double>("camera_pitch_degrees", camera_pitch_degrees);
 
-      double camera_roll_degrees = 0.0;
+      double camera_roll_degrees;
       get_parameter<double>("camera_roll_degrees", camera_roll_degrees);
 
-      double camera_x = 0.26;
+      double camera_x;
       get_parameter<double>("camera_x", camera_x);
 
-      double camera_y = 0.0;
+      double camera_y;
       get_parameter<double>("camera_y", camera_y);
 
-      double camera_z = 0.12;
+      double camera_z;
       get_parameter<double>("camera_z", camera_z);
-      
+
       q.setRPY(camera_roll_degrees * M_PI/180, camera_pitch_degrees*M_PI/180, camera_yaw_degrees*M_PI/180.0);
       geometry_msgs::msg::TransformStamped tf_msg;
 
@@ -595,13 +635,7 @@ void Car::car_update_topic_callback(const car_msgs::msg::Update::SharedPtr d){
 
     tf_broadcaster_->sendTransform(tf_msgs);
 
-
-
-
-
     // send static transforms
-    
-
     last_fr_ = fr;
     last_fl_ = fl;
     last_motor_ = motor;
