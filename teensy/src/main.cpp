@@ -227,8 +227,10 @@ public:
   }
 
   void execute() {
+    analogReadAveraging(32);
+    analogReadResolution(12);
 #if defined(BLUE_CAR)
-    v_bat = analogRead(pin_vbat_sense) * 0.018829;
+    v_bat = analogRead(pin_vbat_sense) * 0.018829 / 4.0;
 #elif defined(SETH_CAR)
     v_bat = analogRead(pin_vbat_sense) * 0.018931424;
 #error "voltage not defined for this car"
