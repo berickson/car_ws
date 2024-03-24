@@ -21,6 +21,10 @@
 #include "depthai/pipeline/node/XLinkOut.hpp"
 #include "depthai/pipeline/node/ImageManip.hpp"
 
+const int previewWidth = 300;
+const int previewHeight = 160;
+
+
 dai::Pipeline createPipeline(bool syncNN, std::string nnPath) {
     dai::Pipeline pipeline;
     auto colorCam = pipeline.create<dai::node::ColorCamera>();
@@ -37,8 +41,7 @@ dai::Pipeline createPipeline(bool syncNN, std::string nnPath) {
     xlinkOut->setStreamName("preview");
     nnOut->setStreamName("detections");
 
-    colorCam->setPreviewSize(1200, 640);  // Set input size to 640x640 for YOLOv8n
-    //colorCam->setPreviewSize(1920, 1080);  // Set input size to 640x640 for YOLOv8n
+    colorCam->setPreviewSize(previewWidth, previewHeight);
     colorCam->setResolution(dai::ColorCameraProperties::SensorResolution::THE_1080_P);
     colorCam->setInterleaved(false);
     colorCam->setColorOrder(dai::ColorCameraProperties::ColorOrder::BGR);
@@ -113,27 +116,32 @@ int main(int argc, char** argv) {
 
     std::string color_uri = cameraParamUri + "/" + "color.yaml";
 
-    // TODO(sachin): Add option to use CameraInfo from EEPROM
+    const int queueDepth = 1;
     dai::rosBridge::ImageConverter rgbConverter(tfPrefix + "_rgb_camera_optical_frame", false);
-    dai::rosBridge::BridgePublisher<sensor_msgs::msg::Image, dai::ImgFrame> rgbPublish(previewQueue,
-                                                                                       node,
-                                                                                       std::string("color/image"),
-                                                                                       std::bind(&dai::rosBridge::ImageConverter::toRosMsg,
-                                                                                                 &rgbConverter,  // since the converter has the same frame name
-                                                                                                                 // and image type is also same we can reuse it
-                                                                                                 std::placeholders::_1,
-                                                                                                 std::placeholders::_2),
-                                                                                       30,
-                                                                                       color_uri,
-                                                                                       "color");
 
-    dai::rosBridge::ImgDetectionConverter detConverter(tfPrefix + "_rgb_camera_optical_frame", 1200, 640, false);
+
+    bool lazy = false;
+    dai::rosBridge::BridgePublisher<sensor_msgs::msg::Image, dai::ImgFrame> rgbPublish(
+        previewQueue,
+        node,
+        std::string("color/image"),
+        std::bind(&dai::rosBridge::ImageConverter::toRosMsg,
+                    &rgbConverter,  // since the converter has the same frame name
+                                    // and image type is also same we can reuse it
+                    std::placeholders::_1,
+                    std::placeholders::_2),
+        queueDepth,
+        color_uri,
+        "color", 
+        lazy);
+
+    dai::rosBridge::ImgDetectionConverter detConverter(tfPrefix + "_rgb_camera_optical_frame", previewWidth, previewHeight, false);
     dai::rosBridge::BridgePublisher<vision_msgs::msg::Detection2DArray, dai::ImgDetections> detectionPublish(
         nNetDataQueue,
         node,
         std::string("color/cone_detections"),
         std::bind(&dai::rosBridge::ImgDetectionConverter::toRosMsg, &detConverter, std::placeholders::_1, std::placeholders::_2),
-        30);
+        queueDepth);
 
     detectionPublish.addPublisherCallback();
     rgbPublish.addPublisherCallback();  // addPublisherCallback works only when the dataqueue is non blocking.
