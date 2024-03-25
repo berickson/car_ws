@@ -22,6 +22,7 @@
 #include "car_msgs/msg/rc_command.h"
 #include "std_srvs/srv/empty.h"
 #include "sensor_msgs/msg/battery_state.h"
+#include "sensor_msgs/msg/joy.h"
 
 
 #include "pwm_input.h"
@@ -294,6 +295,7 @@ rclc_executor_t executor;
 rcl_allocator_t allocator;
 rcl_publisher_t update_publisher;
 rcl_publisher_t battery_state_publisher;
+rcl_publisher_t joy_publisher;
 rcl_publisher_t nmea_sentence_publisher;
 rcl_subscription_t rc_command_subscription;
 rcl_service_t enable_rc_mode_service;
@@ -301,6 +303,8 @@ rcl_service_t disable_rc_mode_service;
 car_msgs__msg__Update update_message;
 car_msgs__msg__RcCommand rc_command_message;
 sensor_msgs__msg__BatteryState battery_state_message;
+sensor_msgs__msg__Joy joy_message;
+bool joy_message_ready = false;
 nmea_msgs__msg__Sentence nmea_sentence_message;
 std_srvs__srv__Empty_Request empty_request_message;
 std_srvs__srv__Empty_Response empty_response_message;
@@ -398,7 +402,7 @@ void publish_update_message() {
 
     update_message.mode.capacity = sizeof(modes.current_task->name);
     update_message.mode.size = sizeof(modes.current_task->name);
-    update_message.mode.data = modes.current_task->name;
+    update_message.mode.data = (char *)modes.current_task->name;
   
     std::ignore = rcl_publish(&update_publisher, &update_message, NULL);
 }
@@ -500,6 +504,13 @@ bool create_uros_entities()
     "car/battery"
   );
 
+  rclc_publisher_init_default(
+    &joy_publisher,
+    &node,
+    ROSIDL_GET_MSG_TYPE_SUPPORT(sensor_msgs, msg, Joy),
+    "car/joy"
+  );
+
   rclc_subscription_init_best_effort(
     &rc_command_subscription,
     &node,
@@ -562,6 +573,7 @@ void destroy_uros_entities()
   
   std::ignore = rcl_publisher_fini(&update_publisher, &node);
   std::ignore = rcl_publisher_fini(&battery_state_publisher, &node);
+ std::ignore = rcl_publisher_fini(&joy_publisher, &node);
   std::ignore = rcl_publisher_fini(&nmea_sentence_publisher, &node);
   std::ignore = rcl_timer_fini(&timer);
   std::ignore = rclc_executor_fini(&executor);
@@ -673,15 +685,41 @@ void setup() {
   }
 
   crsf.setRcChannelsCallback([](serialReceiverLayer::rcChannels_t * rc_channels) {
+    const int axis_count = 15;
+    static float axes[axis_count];
+
     if(rc_channels->failsafe ){
       rx_str.set_from_crsf(0);
       rx_esc.set_from_crsf(0);
       rx_aux.set_from_crsf(0);
+      for(int i=0; i<axis_count; i++) {
+        axes[i] = 0;
+      }
     } else {
-      rx_str.set_from_crsf(crsf.rcToUs(crsf.getChannel(1))) ;
+      rx_str.set_from_crsf(crsf.rcToUs(crsf.getChannel(1)));
       rx_esc.set_from_crsf(crsf.rcToUs(crsf.getChannel(2)));
       rx_aux.set_from_crsf(crsf.rcToUs(crsf.getChannel(3)));
+
+      for(int i=0; i<axis_count; i++) {
+        // remap 1000-2000 to -1 to 1, clamping if necessary
+        axes[i] = constrain(map(crsf.rcToUs(crsf.getChannel(i+1)), 1000, 2000, -1000, 1000) / 1000.0, -1.0, 1.0);
+      }
     }
+
+
+    // also send as joy message
+    joy_message.header.stamp.nanosec = rmw_uros_epoch_nanos() % 1000000000ULL;
+    joy_message.header.stamp.sec = rmw_uros_epoch_millis() / 1000;
+    joy_message.header.frame_id.capacity = 0;
+    joy_message.header.frame_id.size = 0;
+    joy_message.header.frame_id.data = NULL;
+    joy_message.axes.data = axes;
+    joy_message.axes.size = axis_count;
+    joy_message.axes.capacity = axis_count;
+    joy_message.buttons.data = NULL;
+    joy_message.buttons.size = 0;
+    joy_message.buttons.capacity = 0;
+    joy_message_ready = true;
   });
 
   Serial.println("setup");
@@ -790,6 +828,13 @@ void loop() {
 
   if(every_n_ms(last_loop_ms, loop_ms, 10)) {
     modes.execute();
+  }
+
+  if(every_n_ms(last_loop_ms, loop_ms, 10)) {
+    if(joy_message_ready) {
+      std::ignore = rcl_publish(&joy_publisher, &joy_message, NULL);
+      joy_message_ready = false;
+    }
   }
 
   crsf.update(); // update as fast as possible, will call callbacks
