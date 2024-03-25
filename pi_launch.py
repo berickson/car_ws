@@ -55,6 +55,16 @@ def generate_launch_description():
         )
     )
 
+    detection_visualizer = Node(
+        package='detection_visualizer',
+        executable='detection_visualizer',
+        remappings=[
+            ('detection_visualizer/images', '/car/oakd/color/image'),
+            ('detection_visualizer/detections', '/car/oakd/color/cone_detections')
+        ]
+    )
+
+
     ld.add_action(micro_ros_agent)
     ld.add_action(lidar_launch)
     ld.add_action(nmea_navsat_driver)
@@ -62,5 +72,6 @@ def generate_launch_description():
     ld.add_action(foxglove_bridge)
     ld.add_action(cone_detector)
     ld.add_action(car_action_server)
+    ld.add_action(detection_visualizer)
 
     return ld

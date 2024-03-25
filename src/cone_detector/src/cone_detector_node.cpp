@@ -21,8 +21,10 @@
 #include "depthai/pipeline/node/XLinkOut.hpp"
 #include "depthai/pipeline/node/ImageManip.hpp"
 
-const int previewWidth = 300;
-const int previewHeight = 160;
+const int previewWidth = 320;
+const int previewHeight = 180;
+const int nnWidth = 640;
+const int nnHeight = 640;
 
 
 dai::Pipeline createPipeline(bool syncNN, std::string nnPath) {
@@ -32,16 +34,20 @@ dai::Pipeline createPipeline(bool syncNN, std::string nnPath) {
     auto detectionNetwork = pipeline.create<dai::node::YoloDetectionNetwork>();  // Use YoloDetectionNetwork
     auto nnOut = pipeline.create<dai::node::XLinkOut>();
 
+
     auto imageManip = pipeline.create<dai::node::ImageManip>();
-    imageManip->setMaxOutputFrameSize(640*640*3);
-    imageManip->initialConfig.setResize(640, 640);
+    imageManip->setMaxOutputFrameSize(previewWidth*previewHeight*3);
+    imageManip->initialConfig.setResize(previewWidth, previewHeight);
+    imageManip->initialConfig.setCropRect(0,0,1,1);
     imageManip->initialConfig.setFrameType(dai::RawImgFrame::Type::BGR888p);
+    imageManip->setKeepAspectRatio(false);
 
 
     xlinkOut->setStreamName("preview");
     nnOut->setStreamName("detections");
 
-    colorCam->setPreviewSize(previewWidth, previewHeight);
+    colorCam->setPreviewSize(nnWidth, nnHeight);
+    colorCam->setPreviewKeepAspectRatio(false);
     colorCam->setResolution(dai::ColorCameraProperties::SensorResolution::THE_1080_P);
     colorCam->setInterleaved(false);
     colorCam->setColorOrder(dai::ColorCameraProperties::ColorOrder::BGR);
@@ -62,9 +68,9 @@ dai::Pipeline createPipeline(bool syncNN, std::string nnPath) {
 
     // Link plugins CAM -> PREVIEW -> XLINK
     //              CAM -> IMAGE_MANIP -> NN
-    colorCam->preview.link(xlinkOut->input);
+    colorCam->preview.link(detectionNetwork->input);
     colorCam->preview.link(imageManip->inputImage);
-    imageManip->out.link(detectionNetwork->input);
+    imageManip->out.link(xlinkOut->input);
 
     //detectionNetwork->passthrough.link(imageManip->out);
 
