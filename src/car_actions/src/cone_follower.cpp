@@ -108,8 +108,8 @@ public:
       float distance = (cone_distance < 1 && scan_distance < 1) ? scan_distance : cone_distance;
 
 
-      float max_velocity = 3.0;
-      float max_acceleration = 0.5;
+      float max_velocity = 1.5;
+      float max_acceleration = 0.3;
       float min_velocity = 0.1;
       float stop_distance = 0.15; // distance from front of car to cone to stop at
       float distance_remaining = distance - stop_distance;
