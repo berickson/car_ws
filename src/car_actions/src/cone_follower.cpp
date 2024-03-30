@@ -2,6 +2,7 @@
 #include "rclcpp/node.hpp"
 #include "vision_msgs/msg/detection2_d_array.hpp"
 #include "geometry_msgs/msg/twist.hpp"
+#include "sensor_msgs/msg/laser_scan.hpp"
 
 #include "car_msgs/action/follow_cone.hpp"
 #include "rclcpp_action/server.hpp"
@@ -18,9 +19,13 @@ public:
   using FollowCone = car_msgs::action::FollowCone;
   using GoalHandleFollowCone = rclcpp_action::ServerGoalHandle<FollowCone>;
 
-  rclcpp::Subscription<vision_msgs::msg::Detection2DArray>::SharedPtr subscription_;
+  rclcpp::Subscription<vision_msgs::msg::Detection2DArray>::SharedPtr detection_subscription_;
+  rclcpp::Subscription<sensor_msgs::msg::LaserScan>::SharedPtr scan_subscription_;
   rclcpp::Publisher<geometry_msgs::msg::Twist>::SharedPtr cmd_vel_publisher_;
   rclcpp_action::Server<FollowCone>::SharedPtr action_server_;
+
+  // save the most recent scan
+  sensor_msgs::msg::LaserScan::SharedPtr scan_msg_;
 
 
   std::shared_ptr<GoalHandleFollowCone> goal_handle_;
@@ -69,12 +74,44 @@ public:
       float x_width_degrees = detection.bbox.size_x * x_fov_degrees / x_resolution;
       float width_radians = x_width_degrees * (M_PI / 180.0); 
       float cone_width = 0.20; // meters, width of the cone about camera height up
-      float distance = (cone_width/2.0) / sin(width_radians/2.0);
+      float cone_distance = (cone_width/2.0) / sin(width_radians/2.0);
 
-      float max_velocity = 1.0;
+      // find scan line in center of cone and print distance
+      float scan_distance = float('inf');
+      int min_scan_index = -1;
+
+      // we'll just look at the center of the scan
+      int center_count = 20;
+
+      if(scan_msg_ != nullptr) {
+        for(int i = scan_msg_->ranges.size() - center_count; i < scan_msg_->ranges.size(); i++) {
+          if(scan_msg_->ranges[i] < scan_distance) {
+            scan_distance = scan_msg_->ranges[i];
+            min_scan_index = i;
+          }
+        }
+       for(int i = 0; i < center_count; i++) {
+          if(scan_msg_->ranges[i] < scan_distance) {
+            scan_distance = scan_msg_->ranges[i];
+            min_scan_index = i;
+          }
+        }
+        RCLCPP_INFO(this->get_logger(), "scan distance: %3.2f  index: %d", scan_distance, min_scan_index);
+      }
+
+      // adjust distances to be from front of the car
+      cone_distance -= 0.17; // distance from camera to front of car
+      scan_distance -= 0.29; // distance from camera to front of car
+
+
+
+      float distance = (cone_distance < 1 && scan_distance < 1) ? scan_distance : cone_distance;
+
+
+      float max_velocity = 3.0;
       float max_acceleration = 0.5;
       float min_velocity = 0.1;
-      float stop_distance = 0.35; // distance from cone to stop at
+      float stop_distance = 0.15; // distance from front of car to cone to stop at
       float distance_remaining = distance - stop_distance;
 
       // velocity to stop in time
@@ -93,6 +130,8 @@ public:
         cmd_vel_msg.angular.z = 0;
       }
 
+
+
       cmd_vel_publisher_->publish(cmd_vel_msg);
       if(distance_remaining <= 0) {
         if(goal_handle_.get() != nullptr) {
@@ -109,7 +148,11 @@ public:
 
   cone_follower_node() : Node("cone_follower_node") {
     RCLCPP_INFO(this->get_logger(), "Cone Follower Node has started");
-    subscription_ = this->create_subscription<vision_msgs::msg::Detection2DArray>("car/oakd/color/cone_detections", 1, std::bind(&cone_follower_node::cone_detection_callback, this, std::placeholders::_1));
+    detection_subscription_ = this->create_subscription<vision_msgs::msg::Detection2DArray>("car/oakd/color/cone_detections", 1, std::bind(&cone_follower_node::cone_detection_callback, this, std::placeholders::_1));
+    scan_subscription_ = this->create_subscription<sensor_msgs::msg::LaserScan>("scan", 1, [this](const sensor_msgs::msg::LaserScan::SharedPtr msg) {
+      scan_msg_ = msg;
+    });
+
     cmd_vel_publisher_ = this->create_publisher<geometry_msgs::msg::Twist>("cmd_vel", 1);
 
     this->action_server_ = rclcpp_action::create_server<FollowCone>(

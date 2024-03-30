@@ -20,6 +20,7 @@ find_package(rclcpp REQUIRED)
 find_package(rclcpp_action REQUIRED)
 find_package(std_msgs REQUIRED)
 find_package(vision_msgs REQUIRED)
+find_package(sensor_msgs REQUIRED)
 find_package(car_msgs REQUIRED)
 find_package(behaviortree_cpp REQUIRED)
 find_package(nav2_msgs REQUIRED)
@@ -33,6 +34,7 @@ set(dependencies
   std_msgs
   nav2_msgs
   vision_msgs
+  sensor_msgs
 )
 
 include_directories(
