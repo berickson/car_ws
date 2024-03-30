@@ -11,7 +11,7 @@ using namespace std::placeholders;
 
 
 float x_fov_degrees = 69;
-int x_resolution = 1200;
+int x_resolution = 320;
 
 class cone_follower_node : public rclcpp::Node {
 public:
@@ -68,7 +68,7 @@ public:
       float x_angle_degrees = (x_resolution/2.0 - detection.bbox.center.position.x)/x_resolution * x_fov_degrees;
       float x_width_degrees = detection.bbox.size_x * x_fov_degrees / x_resolution;
       float width_radians = x_width_degrees * (M_PI / 180.0); 
-      float cone_width = 0.3; // meters, width of the cone about camera height up
+      float cone_width = 0.20; // meters, width of the cone about camera height up
       float distance = (cone_width/2.0) / sin(width_radians/2.0);
 
       float max_velocity = 1.0;
