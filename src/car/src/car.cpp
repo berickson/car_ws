@@ -276,10 +276,10 @@ class Car : public rclcpp::Node
       curvature_to_str_lookup_table = std::make_unique<LookupTable>(curvature_to_str_vector);
 
 
-      fl_speedometer_publisher_ = this->create_publisher<car_msgs::msg::Speedometer> ("/car/speedometers/fl", 10);
-      fr_speedometer_publisher_ = this->create_publisher<car_msgs::msg::Speedometer> ("/car/speedometers/fr", 10);
-      motor_speedometer_publisher_ = this->create_publisher<car_msgs::msg::Speedometer> ("/car/speedometers/motor", 10);
-      ackerman_fr_publisher_ = this->create_publisher<geometry_msgs::msg::PoseStamped> ("/car/ackermann/fr", 10);
+      fl_speedometer_publisher_ = this->create_publisher<car_msgs::msg::Speedometer> ("car/speedometers/fl", 10);
+      fr_speedometer_publisher_ = this->create_publisher<car_msgs::msg::Speedometer> ("car/speedometers/fr", 10);
+      motor_speedometer_publisher_ = this->create_publisher<car_msgs::msg::Speedometer> ("car/speedometers/motor", 10);
+      ackerman_fr_publisher_ = this->create_publisher<geometry_msgs::msg::PoseStamped> ("car/ackermann/fr", 10);
       tf_broadcaster_ = std::make_unique<tf2_ros::TransformBroadcaster>(*this);
 
       rc_command_publisher_ = this->create_publisher<car_msgs::msg::RcCommand>("car/rc_command", 1);
@@ -290,8 +290,8 @@ class Car : public rclcpp::Node
       cmd_vel_subscription_ = this->create_subscription<geometry_msgs::msg::Twist>(
       "cmd_vel", 1, std::bind(&Car::cmd_vel_topic_callback, this, _1));
 
-      odom_publisher_ = this->create_publisher<nav_msgs::msg::Odometry>("/car/odom", 10);
-      imu_publisher_ = this->create_publisher<sensor_msgs::msg::Imu>("/car/imu", 10);   
+      odom_publisher_ = this->create_publisher<nav_msgs::msg::Odometry>("car/odom", 10);
+      imu_publisher_ = this->create_publisher<sensor_msgs::msg::Imu>("car/imu", 10);
 
       reset_service_ = this->create_service<std_srvs::srv::Empty>("car/reset",std::bind(&Car::reset_service_callback, this, _1, _2) );
       
@@ -534,12 +534,15 @@ void Car::car_update_topic_callback(const car_msgs::msg::Update::SharedPtr d){
       odom.pose.pose.orientation.w = q.w();
       odom.pose.covariance = 
         {
-          -1, -1, -1, -1, -1, -1,
-          -1, -1, -1, -1, -1, -1,
-          -1, -1, -1, -1, -1, -1,
-          -1, -1, -1, -1, -1, -1,
-          -1, -1, -1, -1, -1, -1,
-          -1, -1, -1, -1, -1, -1
+          .1, 0, 0, 0, 0, 0,
+          0, .1, 0, 0, 0, 0,
+          0, 0, .1, 0, 0, 0,
+          0, 0, 0, .1, 0, 0,
+          0, 0, 0, 0, .1, 0,
+          0, 0, 0, 0, 0, .1
+          // -1, -1, -1, -1, -1, -1,
+          // -1, -1, -1, -1, -1, -1,
+          // -1, -1, -1, -1, -1, -1
         };
 
       odom_publisher_->publish(odom);
@@ -598,16 +601,16 @@ void Car::car_update_topic_callback(const car_msgs::msg::Update::SharedPtr d){
         {
           sensor_msgs::msg::Imu imu;
           imu.header.stamp = stamp;
-          imu.header.frame_id = "base_link";
+          imu.header.frame_id = "base_footprint";
           imu.orientation.x = q.x();
           imu.orientation.y = q.y();
           imu.orientation.z = q.z();
           imu.orientation.w = q.w();
           imu.orientation_covariance = 
             {
-              -1, -1, -1,
-              -1, -1, -1,
-              -1, -1, -1
+              0.1, 0, 0,
+              0, 0.1, 0,
+              0, 0, 0.1
             };
 
           imu.angular_velocity.x = odom.twist.twist.angular.x;
@@ -627,7 +630,7 @@ void Car::car_update_topic_callback(const car_msgs::msg::Update::SharedPtr d){
             {
               0.1, 0, 0,
               0, 0.1, 0,
-              -1, -1, -1
+              0, 0, 0.1
             };
 
           imu_publisher_->publish(imu);
