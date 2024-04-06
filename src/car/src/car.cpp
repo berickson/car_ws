@@ -600,6 +600,11 @@ void Car::car_update_topic_callback(const car_msgs::msg::Update::SharedPtr d){
         // publish imu
         {
           sensor_msgs::msg::Imu imu;
+          // get oreientation from the mag_deg_yaw
+          tf2::Quaternion q;
+          q.setRPY(0, 0, d->mpu_deg_yaw * M_PI / 180.0);
+
+          
           imu.header.stamp = stamp;
           imu.header.frame_id = "base_footprint";
           imu.orientation.x = q.x();
@@ -662,7 +667,9 @@ void Car::car_update_topic_callback(const car_msgs::msg::Update::SharedPtr d){
       tf_msg.transform.rotation.z = q.z();
       tf_msg.transform.rotation.w = q.w();
 
-      tf_msgs.push_back(tf_msg);
+      // don't publish since we are using ekf
+      // todo: make this configurable
+      // tf_msgs.push_back(tf_msg);
     }
 
     // base_footprint->base_link
