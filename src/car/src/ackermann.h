@@ -27,6 +27,8 @@ public:
   double x; // x and y are at center of rear wheels
   double y;
   double heading;
+  double dx; // change in x relative to the car frame in the last move
+  double dy; // change in y relative to the car frame in the last move
 
   Ackermann(double front_wheelbase_width = 1.0, double wheelbase_length = 1.0, Point position=Point(0,0), Angle heading = Angle::radians(0));
   void reset(Point position  = Point(), Angle heading = Angle::radians(0));

@@ -6,6 +6,11 @@
 #include <tf2/LinearMath/Quaternion.h>
 #include <tf2_ros/transform_broadcaster.h>
 
+#include "nav_msgs/msg/odometry.hpp"
+#include "nav2_util/geometry_utils.hpp"
+
+#include "sensor_msgs/msg/imu.hpp"
+
 #include "geometry_msgs/msg/twist.hpp"
 #include "geometry_msgs/msg/pose_stamped.hpp"
 #include "std_srvs/srv/empty.hpp"
@@ -271,10 +276,10 @@ class Car : public rclcpp::Node
       curvature_to_str_lookup_table = std::make_unique<LookupTable>(curvature_to_str_vector);
 
 
-      fl_speedometer_publisher_ = this->create_publisher<car_msgs::msg::Speedometer> ("/car/speedometers/fl", 10);
-      fr_speedometer_publisher_ = this->create_publisher<car_msgs::msg::Speedometer> ("/car/speedometers/fr", 10);
-      motor_speedometer_publisher_ = this->create_publisher<car_msgs::msg::Speedometer> ("/car/speedometers/motor", 10);
-      ackerman_fr_publisher_ = this->create_publisher<geometry_msgs::msg::PoseStamped> ("/car/ackermann/fr", 10);
+      fl_speedometer_publisher_ = this->create_publisher<car_msgs::msg::Speedometer> ("car/speedometers/fl", 10);
+      fr_speedometer_publisher_ = this->create_publisher<car_msgs::msg::Speedometer> ("car/speedometers/fr", 10);
+      motor_speedometer_publisher_ = this->create_publisher<car_msgs::msg::Speedometer> ("car/speedometers/motor", 10);
+      ackerman_fr_publisher_ = this->create_publisher<geometry_msgs::msg::PoseStamped> ("car/ackermann/fr", 10);
       tf_broadcaster_ = std::make_unique<tf2_ros::TransformBroadcaster>(*this);
 
       rc_command_publisher_ = this->create_publisher<car_msgs::msg::RcCommand>("car/rc_command", 1);
@@ -284,6 +289,9 @@ class Car : public rclcpp::Node
 
       cmd_vel_subscription_ = this->create_subscription<geometry_msgs::msg::Twist>(
       "cmd_vel", 1, std::bind(&Car::cmd_vel_topic_callback, this, _1));
+
+      odom_publisher_ = this->create_publisher<nav_msgs::msg::Odometry>("car/odom", 10);
+      imu_publisher_ = this->create_publisher<sensor_msgs::msg::Imu>("car/imu", 10);
 
       reset_service_ = this->create_service<std_srvs::srv::Empty>("car/reset",std::bind(&Car::reset_service_callback, this, _1, _2) );
       
@@ -325,8 +333,12 @@ class Car : public rclcpp::Node
     rclcpp::Publisher<car_msgs::msg::Speedometer>::SharedPtr fr_speedometer_publisher_;
     rclcpp::Publisher<car_msgs::msg::Speedometer>::SharedPtr motor_speedometer_publisher_;
     rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr ackerman_fr_publisher_;
+    rclcpp::Publisher<nav_msgs::msg::Odometry>::SharedPtr odom_publisher_;
+    rclcpp::Publisher<sensor_msgs::msg::Imu>::SharedPtr imu_publisher_;
 
     rclcpp::Subscription<car_msgs::msg::Update>::SharedPtr update_sub_;
+
+    car_msgs::msg::Update::SharedPtr last_update_message_;
 
     std::unique_ptr<tf2_ros::TransformBroadcaster> tf_broadcaster_;
 
@@ -473,12 +485,12 @@ void Car::car_update_topic_callback(const car_msgs::msg::Update::SharedPtr d){
                             yaw);  // ackermann needs first heading reading
     } else if (update_count_ > 2) {
         double wheel_distance_meters = fr.meters - last_fr_.meters;
-        if(fabs(wheel_distance_meters)>0) {
+        //if(fabs(wheel_distance_meters)>0) {
             // todo: use the ackermann model to calculate the outside wheel angle
             Angle outside_wheel_angle = angle_for_steering(d->rx_str);
             ackermann_.move_right_wheel(outside_wheel_angle, wheel_distance_meters,
                                     yaw);
-        } 
+        //} 
     }
 
     // you can detect whether the Traxxas power switch is on by looking at rx signals
@@ -505,6 +517,143 @@ void Car::car_update_topic_callback(const car_msgs::msg::Update::SharedPtr d){
 
     ackerman_fr_publisher_->publish(pose_msg);
 
+    // publish to odometry
+    {
+      static nav_msgs::msg::Odometry last_odom;
+
+      nav_msgs::msg::Odometry odom;
+      odom.header.stamp = stamp;
+      odom.header.frame_id = "odom";
+      odom.child_frame_id = "base_footprint";
+      odom.pose.pose.position.x = rear_position.x;
+      odom.pose.pose.position.y = rear_position.y;
+      odom.pose.pose.position.z = 0.0;
+      odom.pose.pose.orientation.x = q.x();
+      odom.pose.pose.orientation.y = q.y();
+      odom.pose.pose.orientation.z = q.z();
+      odom.pose.pose.orientation.w = q.w();
+      odom.pose.covariance = 
+        {
+          .1, 0, 0, 0, 0, 0,
+          0, .1, 0, 0, 0, 0,
+          0, 0, .1, 0, 0, 0,
+          0, 0, 0, .1, 0, 0,
+          0, 0, 0, 0, .1, 0,
+          0, 0, 0, 0, 0, .1
+        };
+
+
+      // set the twist and publish only if we have a recent last_transform
+      double dt = (stamp - last_odom.header.stamp).seconds();
+      if(dt > 0.0 && dt < 0.1) {
+        
+        // 0.05 deg/s/sqrt(hz) rms noise according to mpu6050 spec
+        double cov_angular = 0.05 * M_PI / 180.0 * sqrt(1/dt);
+
+        // twist is relative to the car
+        double v_x = ackermann_.dx / dt;
+        double v_y = ackermann_.dy / dt;
+        odom.twist.twist.linear.x = v_x;
+        odom.twist.twist.linear.y = v_y;
+
+        // Convert quaternions to roll, pitch, yaw angles
+        tf2::Quaternion q_odom, q_odom_last;
+        tf2::fromMsg(odom.pose.pose.orientation, q_odom);
+        tf2::fromMsg(last_odom.pose.pose.orientation, q_odom_last);
+
+        double roll, pitch, yaw, roll_last, pitch_last, yaw_last;
+        tf2::Matrix3x3(q_odom).getRPY(roll, pitch, yaw);
+        tf2::Matrix3x3(q_odom_last).getRPY(roll_last, pitch_last, yaw_last);
+
+        // Calculate the angular velocity        
+        odom.twist.twist.angular.x = (roll - roll_last) / dt;
+        odom.twist.twist.angular.y = (pitch - pitch_last) / dt;
+        odom.twist.twist.angular.z = (yaw - yaw_last) / dt;
+
+        // calculate covariances
+        double cov_vx = v_x * 0.01;
+        double cov_vy = v_y * 0.01;
+        double cov_vz = 0.0;
+
+        
+        double cov_angle_x = cov_angular; 
+        double cov_angle_y = cov_angular; 
+        double cov_angle_z = cov_angular;
+
+        odom.twist.covariance = 
+                  {
+            0.1, 0, 0, 0, 0, 0,
+            0, 0.1, 0, 0, 0, 0,
+            0, 0, 0.1, 0, 0, 0,
+            0, 0, 0, 0.1, 0, 0,
+            0, 0, 0, 0, 0.1, 0,
+            0, 0, 0, 0, 0, 0.1
+          };
+
+          // {
+          //   cov_vx, 0, 0, 0, 0, 0,
+          //   0, cov_vy, 0, 0, 0, 0,
+          //   0, 0, cov_vz, 0, 0, 0,
+          //   0, 0, 0, cov_angle_x, 0, 0,
+          //   0, 0, 0, 0, cov_angle_y, 0,
+          //   0, 0, 0, 0, 0, cov_angle_z
+          // };
+
+        odom_publisher_->publish(odom);
+
+        // publish imu
+        {
+          sensor_msgs::msg::Imu imu;
+          // get orientation from the mag_deg_yaw
+          tf2::Quaternion q;
+          q.setRPY(0, 0, d->mpu_deg_yaw * M_PI / 180.0);
+
+          
+          imu.header.stamp = stamp;
+          imu.header.frame_id = "base_footprint";
+          imu.orientation.x = q.x();
+          imu.orientation.y = q.y();
+          imu.orientation.z = q.z();
+          imu.orientation.w = q.w();
+          imu.orientation_covariance = 
+            {
+              0.1, 0, 0,
+              0, 0.1, 0,
+              0, 0, 0.1
+            };
+
+          imu.angular_velocity.x = odom.twist.twist.angular.x;
+          imu.angular_velocity.y = odom.twist.twist.angular.y;
+          imu.angular_velocity.z = odom.twist.twist.angular.z;
+          imu.angular_velocity_covariance = 
+            {
+              cov_angular, 0, 0,
+              0, cov_angular, 0,
+              0, 0, cov_angular
+            };
+
+          imu.linear_acceleration.x = d->ax;
+          imu.linear_acceleration.y = d->ay;
+          imu.linear_acceleration.z = 0.0;
+          imu.linear_acceleration_covariance = 
+            {
+              0.1, 0, 0,
+              0, 0.1, 0,
+              0, 0, 0.1
+            };
+
+          imu_publisher_->publish(imu);
+        }
+
+
+      }
+  
+      last_odom = odom;
+
+    }
+
+
+
     std::vector<geometry_msgs::msg::TransformStamped> tf_msgs;
 
     // odom->base_footprint
@@ -522,7 +671,9 @@ void Car::car_update_topic_callback(const car_msgs::msg::Update::SharedPtr d){
       tf_msg.transform.rotation.z = q.z();
       tf_msg.transform.rotation.w = q.w();
 
-      tf_msgs.push_back(tf_msg);
+      // don't publish since we are using ekf
+      // todo: make this configurable
+      // tf_msgs.push_back(tf_msg);
     }
 
     // base_footprint->base_link
@@ -674,6 +825,9 @@ void Car::car_update_topic_callback(const car_msgs::msg::Update::SharedPtr d){
     rc_command_message.str_us = str_us_float;
     rc_command_message.esc_us = esc_us_float;
     rc_command_publisher_->publish(rc_command_message);
+
+    // remember the last message for the next iteration
+    last_update_message_ = d;
 
 }
 

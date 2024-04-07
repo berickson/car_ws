@@ -490,7 +490,7 @@ bool create_uros_entities()
     ROSIDL_GET_MSG_TYPE_SUPPORT(car_msgs, msg, Update),
     "car/update");
   
-  rclc_publisher_init_best_effort(
+  rclc_publisher_init_default(
     &nmea_sentence_publisher,
     &node,
     ROSIDL_GET_MSG_TYPE_SUPPORT(nmea_msgs, msg, Sentence),

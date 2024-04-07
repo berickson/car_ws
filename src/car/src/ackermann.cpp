@@ -114,6 +114,8 @@ void Ackermann::move_right_wheel(Angle outside_wheel_angle, double wheel_distanc
     turn_angle = wheel_distance / r_right;
     forward = r_car * sin(turn_angle);
     left = r_car * (1.-cos(turn_angle));
+    this->dx = forward;
+    this->dy = left;
   }
 
   // finally, move the car based on left and forward
