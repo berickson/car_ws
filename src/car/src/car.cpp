@@ -540,12 +540,7 @@ void Car::car_update_topic_callback(const car_msgs::msg::Update::SharedPtr d){
           0, 0, 0, .1, 0, 0,
           0, 0, 0, 0, .1, 0,
           0, 0, 0, 0, 0, .1
-          // -1, -1, -1, -1, -1, -1,
-          // -1, -1, -1, -1, -1, -1,
-          // -1, -1, -1, -1, -1, -1
         };
-
-      odom_publisher_->publish(odom);
 
 
       // set the twist and publish only if we have a recent last_transform
@@ -586,21 +581,30 @@ void Car::car_update_topic_callback(const car_msgs::msg::Update::SharedPtr d){
         double cov_angle_z = cov_angular;
 
         odom.twist.covariance = 
-          {
-            cov_vx, 0, 0, 0, 0, 0,
-            0, cov_vy, 0, 0, 0, 0,
-            0, 0, cov_vz, 0, 0, 0,
-            0, 0, 0, cov_angle_x, 0, 0,
-            0, 0, 0, 0, cov_angle_y, 0,
-            0, 0, 0, 0, 0, cov_angle_z
+                  {
+            0.1, 0, 0, 0, 0, 0,
+            0, 0.1, 0, 0, 0, 0,
+            0, 0, 0.1, 0, 0, 0,
+            0, 0, 0, 0.1, 0, 0,
+            0, 0, 0, 0, 0.1, 0,
+            0, 0, 0, 0, 0, 0.1
           };
+
+          // {
+          //   cov_vx, 0, 0, 0, 0, 0,
+          //   0, cov_vy, 0, 0, 0, 0,
+          //   0, 0, cov_vz, 0, 0, 0,
+          //   0, 0, 0, cov_angle_x, 0, 0,
+          //   0, 0, 0, 0, cov_angle_y, 0,
+          //   0, 0, 0, 0, 0, cov_angle_z
+          // };
 
         odom_publisher_->publish(odom);
 
         // publish imu
         {
           sensor_msgs::msg::Imu imu;
-          // get oreientation from the mag_deg_yaw
+          // get orientation from the mag_deg_yaw
           tf2::Quaternion q;
           q.setRPY(0, 0, d->mpu_deg_yaw * M_PI / 180.0);
 
