@@ -108,8 +108,11 @@ public:
       float distance = (cone_distance < 1 && scan_distance < 1) ? scan_distance : cone_distance;
 
 
+
       float max_velocity = 1.5;
-      float max_acceleration = 0.3;
+      double max_accel;
+      get_parameter<double>("accel", max_accel);
+      float max_acceleration = max_accel;//COME BACK TO THIS WHEN YOU GET RESPONSE
       float min_velocity = 0.1;
       float stop_distance = 0.15; // distance from front of car to cone to stop at
       float distance_remaining = distance - stop_distance;
@@ -161,6 +164,12 @@ public:
       std::bind(&cone_follower_node::handle_goal, this, _1, _2),
       std::bind(&cone_follower_node::handle_cancel, this, _1),
       std::bind(&cone_follower_node::handle_accepted, this, _1));
+
+      auto param_desc = rcl_interfaces::msg::ParameterDescriptor{};
+      param_desc.description = "Max acceleration";
+      param_desc.type = rclcpp::ParameterType::PARAMETER_DOUBLE;
+      this->declare_parameter("accel", 0.3, param_desc);
+
     }
   
 };

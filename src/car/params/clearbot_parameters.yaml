@@ -1,4 +1,7 @@
 car:
   ros__parameters:
     robot_id: "clearbot"
-    motor_meters_per_tick = 0.00176
+    motor_meters_per_tick: 0.00176
+cone_follower:
+  ros__parameters:
+    accel: 0.4
