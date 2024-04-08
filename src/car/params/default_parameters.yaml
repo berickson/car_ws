@@ -47,3 +47,6 @@ car:
       71.9, 1175.0,
       85.1, 1071.0 
     ]
+cone_follower_node:
+  ros__parameters:
+    accel: 0.4
