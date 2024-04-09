@@ -39,7 +39,8 @@ def generate_launch_description():
 
     car_action_server = Node(
         package="car_actions",
-        executable="car_action_server"
+        executable="car_action_server",
+        parameters=[default_config, car_config]
     )
 
     foxglove_bridge = Node(
