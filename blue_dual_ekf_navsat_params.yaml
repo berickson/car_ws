@@ -23,7 +23,7 @@ ekf_filter_node_odom:
     odom0_differential: false
     odom0_relative: false
 
-    imu0: imu
+    imu0: car/compass
 
     imu0_config: [false, false, false,   # x, y, z, 
                   false,  false,  true,  # roll, pitch, yaw
@@ -33,7 +33,6 @@ ekf_filter_node_odom:
     imu0_differential: false
     imu0_relative: false
     imu0_queue_size: 10
-    imu0_remove_gravitational_acceleration: true
 
     use_control: false
 
@@ -73,7 +72,7 @@ ekf_filter_node_map:
                   false, false, true,   # vroll, vpitch, vyaw
                   false, false, false]  # ax, ay, az
     odom0_queue_size: 10
-    odom0_differential: true
+    odom0_differential: false
     odom0_relative: false
 
     odom1: odometry/gps
@@ -93,9 +92,19 @@ ekf_filter_node_map:
                   false,  false,  false, # vroll, vpitch, vyaw
                   false,  false,  false] # ax, ay, az
     imu0_differential: false
-    imu0_relative: false
+    imu0_relative: true # convert absolute yaw to angular velocity
     imu0_queue_size: 10
-    imu0_remove_gravitational_acceleration: true
+
+    imu1: car/compass
+    imu1_config: [false, false, false,   # x, y, z
+                  false,  false,  true,  # roll, pitch, yaw
+                  false, false, false,   # vx, vy, vz
+                  false,  false,  false, # vroll, vpitch, vyaw
+                  false,  false,  false] # ax, ay, az
+    imu1_differential: false
+    imu1_relative: false
+    imu1_queue_size: 10
+
 
     use_control: false
 
