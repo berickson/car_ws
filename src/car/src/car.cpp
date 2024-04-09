@@ -111,11 +111,11 @@ class Car : public rclcpp::Node
       }
 
       {
-        // mag_correction_degrees
+        // compass_correction_degrees
         auto param_desc = rcl_interfaces::msg::ParameterDescriptor{};
-        param_desc.description = "Calibration constant will be added to the yaw reading from the magnetometer";
+        param_desc.description = "Calibration constant will be added to the yaw reading from the compass";
         param_desc.type = rclcpp::ParameterType::PARAMETER_DOUBLE;
-        this->declare_parameter("mag_correction_degrees", 0.0, param_desc);
+        this->declare_parameter("compass_correction_degrees", 0.0, param_desc);
       }
 
       {
@@ -304,7 +304,7 @@ class Car : public rclcpp::Node
 
       odom_publisher_ = this->create_publisher<nav_msgs::msg::Odometry>("car/odom", 10);
       imu_publisher_ = this->create_publisher<sensor_msgs::msg::Imu>("car/imu", 10);
-      mag_publisher_ = this->create_publisher<sensor_msgs::msg::Imu>("car/mag", 10);
+      compass_publisher_ = this->create_publisher<sensor_msgs::msg::Imu>("car/compass", 10);
 
       reset_service_ = this->create_service<std_srvs::srv::Empty>("car/reset",std::bind(&Car::reset_service_callback, this, _1, _2) );
       
@@ -348,7 +348,7 @@ class Car : public rclcpp::Node
     rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr ackerman_fr_publisher_;
     rclcpp::Publisher<nav_msgs::msg::Odometry>::SharedPtr odom_publisher_;
     rclcpp::Publisher<sensor_msgs::msg::Imu>::SharedPtr imu_publisher_;
-    rclcpp::Publisher<sensor_msgs::msg::Imu>::SharedPtr mag_publisher_;
+    rclcpp::Publisher<sensor_msgs::msg::Imu>::SharedPtr compass_publisher_;
 
     rclcpp::Subscription<car_msgs::msg::Update>::SharedPtr update_sub_;
 
@@ -472,7 +472,6 @@ void Car::car_update_topic_callback(const car_msgs::msg::Update::SharedPtr d){
 
     ++update_count_;
 
-    Angle mag_yaw = Angle::degrees(atan2(d->mag_y, d->mag_x) * 180.0 / M_PI);
     Angle yaw = Angle::degrees(d->mpu_deg_yaw);
     Angle pitch = Angle::degrees(d->mpu_deg_pitch);
     Angle roll = Angle::degrees(d->mpu_deg_roll);
@@ -662,45 +661,45 @@ void Car::car_update_topic_callback(const car_msgs::msg::Update::SharedPtr d){
 
         // publish imu for magnetometer (will only have orientation)
         {
-          sensor_msgs::msg::Imu mag;
+          sensor_msgs::msg::Imu compass;
           tf2::Quaternion q;
-          double magnetometer_correction_degrees;
-          get_parameter<double>("mag_correction_degrees", magnetometer_correction_degrees);
+          double compass_correction_degrees;
+          get_parameter<double>("compass_correction_degrees", compass_correction_degrees);
 
 
           // scale range of -650 to 900 to -1 to 1
           double mag_x = mapRange(-650, 900, -1, 1, d->mag_x);
           double mag_y = mapRange(-302,1180, -1, 1, d->mag_y);
-          double magnetometer_radians = atan2(mag_y, mag_x);
-          q.setRPY(0, 0, magnetometer_radians + magnetometer_correction_degrees * M_PI / 180.0);
+          double compass_radians = atan2(mag_y, mag_x);
+          q.setRPY(0, 0, compass_radians + compass_correction_degrees * M_PI / 180.0);
 
-          mag.header.stamp = stamp;
-          mag.header.frame_id = "base_footprint";
-          mag.orientation.x = q.x();
-          mag.orientation.y = q.y();
-          mag.orientation.z = q.z();
-          mag.orientation.w = q.w();
-          mag.orientation_covariance = 
+          compass.header.stamp = stamp;
+          compass.header.frame_id = "base_footprint";
+          compass.orientation.x = q.x();
+          compass.orientation.y = q.y();
+          compass.orientation.z = q.z();
+          compass.orientation.w = q.w();
+          compass.orientation_covariance = 
             {
               0.1, 0, 0,
               0, 0.1, 0,
               0, 0, 0.1
             };
           // mark all other readings as invalid
-          mag.angular_velocity_covariance = 
+          compass.angular_velocity_covariance = 
             {
               -1, 0, 0,
               0, -1, 0,
               0, 0, -1
             };
-          mag.linear_acceleration_covariance = 
+          compass.linear_acceleration_covariance = 
             {
               -1, 0, 0,
               0, -1, 0,
               0, 0, -1
             };
             
-          mag_publisher_->publish(mag);
+          compass_publisher_->publish(compass);
         } 
 
 
