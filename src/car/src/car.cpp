@@ -562,7 +562,8 @@ void Car::car_update_topic_callback(const car_msgs::msg::Update::SharedPtr d){
       if(dt > 0.0 && dt < 0.1) {
         
         // 0.05 deg/s/sqrt(hz) rms noise according to mpu6050 spec
-        double cov_angular = 0.05 * M_PI / 180.0 * sqrt(1/dt);
+        double std_angular = 0.05 * M_PI / 180.0 * sqrt(1/dt);
+        double cov_angular = std_angular * std_angular;
 
         // twist is relative to the car
         double v_x = ackermann_.dx / dt;
@@ -585,9 +586,9 @@ void Car::car_update_topic_callback(const car_msgs::msg::Update::SharedPtr d){
         odom.twist.twist.angular.z = (yaw - yaw_last) / dt;
 
         // calculate covariances
-        double cov_vx = v_x * 0.01;
-        double cov_vy = v_y * 0.01;
-        double cov_vz = 0.0;
+        double std_vx = v_x * 0.01;
+        double std_vy = v_y * 0.01;
+        double std_vz = 0.0;
 
         
         double cov_angle_x = cov_angular; 
@@ -595,23 +596,23 @@ void Car::car_update_topic_callback(const car_msgs::msg::Update::SharedPtr d){
         double cov_angle_z = cov_angular;
 
         odom.twist.covariance = 
-                  {
-            0.1, 0, 0, 0, 0, 0,
-            0, 0.1, 0, 0, 0, 0,
-            0, 0, 0.1, 0, 0, 0,
-            0, 0, 0, 0.1, 0, 0,
-            0, 0, 0, 0, 0.1, 0,
-            0, 0, 0, 0, 0, 0.1
-          };
-
-          // {
-          //   cov_vx, 0, 0, 0, 0, 0,
-          //   0, cov_vy, 0, 0, 0, 0,
-          //   0, 0, cov_vz, 0, 0, 0,
-          //   0, 0, 0, cov_angle_x, 0, 0,
-          //   0, 0, 0, 0, cov_angle_y, 0,
-          //   0, 0, 0, 0, 0, cov_angle_z
+          //         {
+          //   0.1, 0, 0, 0, 0, 0,
+          //   0, 0.1, 0, 0, 0, 0,
+          //   0, 0, 0.1, 0, 0, 0,
+          //   0, 0, 0, 0.1, 0, 0,
+          //   0, 0, 0, 0, 0.1, 0,
+          //   0, 0, 0, 0, 0, 0.1
           // };
+
+          {
+            std_vx * std_vx, 0, 0, 0, 0, 0,
+            0, std_vy * std_vy, 0, 0, 0, 0,
+            0, 0, std_vz  * std_vz, 0, 0, 0,
+            0, 0, 0, cov_angle_x, 0, 0,
+            0, 0, 0, 0, cov_angle_y, 0,
+            0, 0, 0, 0, 0, cov_angle_z
+          };
 
         odom_publisher_->publish(odom);
 

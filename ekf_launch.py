@@ -29,7 +29,7 @@ def generate_launch_description():
     #    gps_wpf_dir, "config", "blue_dual_ekf_navsat_params.yaml")
 
     current_dir = os.path.dirname(os.path.realpath(__file__))
-    rl_params_file = os.path.join(current_dir, "blue_dual_ekf_navsat_params.yaml");
+    rl_params_file = os.path.join(current_dir, "ekf.yaml");
 
     return LaunchDescription(
         [
@@ -37,7 +37,7 @@ def generate_launch_description():
                 "output_final_position", default_value="false"
             ),
             launch.actions.DeclareLaunchArgument(
-                "output_location", default_value="~/dual_ekf_navsat_example_debug.txt"
+                "output_location", default_value="~/ekf_debug.txt"
             ),
             launch_ros.actions.Node(
                 package="robot_localization",
