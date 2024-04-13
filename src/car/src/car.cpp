@@ -59,6 +59,41 @@ class Car : public rclcpp::Node
         this->declare_parameter("robot_id", "unknown", param_desc);
       }
 
+
+      {
+        // mag_x_min
+        auto param_desc = rcl_interfaces::msg::ParameterDescriptor{};
+        param_desc.description = "Minimum raw value of x from magnetometer";
+        param_desc.type = rclcpp::ParameterType::PARAMETER_DOUBLE;
+        this->declare_parameter("mag_x_min", -1000.0, param_desc);
+      }
+
+      {
+        // mag_x_max
+        auto param_desc = rcl_interfaces::msg::ParameterDescriptor{};
+        param_desc.description = "Maximum raw value of x from magnetometer";
+        param_desc.type = rclcpp::ParameterType::PARAMETER_DOUBLE;
+        this->declare_parameter("mag_x_max", 1000.0, param_desc);
+      }
+
+      {
+        // mag_y_min
+        auto param_desc = rcl_interfaces::msg::ParameterDescriptor{};
+        param_desc.description = "Minimum raw value of y from magnetometer";
+        param_desc.type = rclcpp::ParameterType::PARAMETER_DOUBLE;
+        this->declare_parameter("mag_y_min", -1000.0, param_desc);
+      }
+
+      {
+        // mag_y_max
+        auto param_desc = rcl_interfaces::msg::ParameterDescriptor{};
+        param_desc.description = "Maximum raw value of y from magnetometer";
+        param_desc.type = rclcpp::ParameterType::PARAMETER_DOUBLE;
+        this->declare_parameter("mag_y_max", 1000.0, param_desc);
+      }
+
+
+
       {
         std::vector<double> default_velocity_to_esc_lookup          {
             -2., 1300,  // {-2., 1200},
@@ -681,10 +716,17 @@ void Car::car_update_topic_callback(const car_msgs::msg::Update::SharedPtr d){
           double compass_correction_degrees;
           get_parameter<double>("compass_correction_degrees", compass_correction_degrees);
 
+          double mag_x_min, mag_x_max, mag_y_min, mag_y_max;
+
+          get_parameter("mag_x_min", mag_x_min);
+          get_parameter("mag_x_max", mag_x_max);
+          get_parameter("mag_y_min", mag_y_min);
+          get_parameter("mag_y_max", mag_y_max);
+
 
           // scale range of -650 to 900 to -1 to 1
-          double mag_x = mapRange(-650, 900, -1, 1, d->mag_x);
-          double mag_y = mapRange(-302,1180, -1, 1, d->mag_y);
+          double mag_x = mapRange(mag_x_min, mag_x_max, -1, 1, d->mag_x);
+          double mag_y = mapRange(mag_y_min, mag_y_max, -1, 1, d->mag_y);
           double compass_radians = atan2(mag_y, mag_x);
           q.setRPY(0, 0, compass_radians + compass_correction_degrees * M_PI / 180.0);
 

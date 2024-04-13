@@ -2,6 +2,11 @@ car:
   ros__parameters:
     robot_id: "clearbot"
     motor_meters_per_tick: 0.00176
+    compass_correction_degrees: 160.0
+    mag_x_min: -1058.0
+    mag_x_max: 365.0
+    mag_y_min: -252.0
+    mag_y_max: 1285.0
 cone_follower_node:
   ros__parameters:
     accel: 0.5

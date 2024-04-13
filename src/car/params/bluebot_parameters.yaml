@@ -10,7 +10,12 @@ car:
     compass_error_degrees: 5.0
     compass_error_factor: 1000.0 # makes navigation less sensitive to compass errors
     lidar_x: 0.140
-    lidar_z: 0.175  
+    lidar_z: 0.175
+    mag_x_min: -650.0
+    mag_x_max: 900.0
+    mag_y_min: -302.0
+    mag_y_max: 1180.0
+
     curvature_to_str_lookup: [
       -85.1, 1844.0,
       -71.9, 1744.0,
