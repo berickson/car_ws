@@ -29,6 +29,19 @@ def generate_launch_description():
       namespace="car/gps",
       package="nmea_navsat_driver",
       executable="nmea_topic_driver",
+      remappings=[
+          ('fix', 'fix_raw'),
+      ]
+    )
+
+    gps_fixer = Node(
+        package="gps_fixer",
+        executable="gps_fixer",
+        remappings=[
+            ('fix_in', '/car/gps/fix_raw'),
+            ('fix_out', '/car/gps/fix')
+        ],
+        parameters=[default_config, car_config],
     )
 
     car = Node(
@@ -65,14 +78,20 @@ def generate_launch_description():
         ]
     )
 
+    ekf = IncludeLaunchDescription(
+        PythonLaunchDescriptionSource('ekf_launch.py')
+    )
+
 
     ld.add_action(micro_ros_agent)
     ld.add_action(lidar_launch)
     ld.add_action(nmea_navsat_driver)
     ld.add_action(car)
+    ld.add_action(gps_fixer)
     ld.add_action(foxglove_bridge)
     ld.add_action(cone_detector)
     ld.add_action(car_action_server)
     ld.add_action(detection_visualizer)
+    ld.add_action(ekf)
 
     return ld

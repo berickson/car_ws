@@ -118,6 +118,22 @@ class Car : public rclcpp::Node
         this->declare_parameter("compass_correction_degrees", 0.0, param_desc);
       }
 
+      // compass error degrees
+      {
+        auto param_desc = rcl_interfaces::msg::ParameterDescriptor{};
+        param_desc.description = "Standard deviation for compass reading, in degrees";
+        param_desc.type = rclcpp::ParameterType::PARAMETER_DOUBLE;
+        this->declare_parameter("compass_error_degrees", 5.0, param_desc);
+      }
+
+      // compass error factor
+      {
+        auto param_desc = rcl_interfaces::msg::ParameterDescriptor{};
+        param_desc.description = "Factor to multiply compass error by when calculating covariance matrix, higher values make the compass less sensitive to errors";
+        param_desc.type = rclcpp::ParameterType::PARAMETER_DOUBLE;
+        this->declare_parameter("compass_error_factor", 1.0, param_desc);
+      }
+
       {
         // camera_yaw_degrees
         auto param_desc = rcl_interfaces::msg::ParameterDescriptor{};
@@ -561,8 +577,9 @@ void Car::car_update_topic_callback(const car_msgs::msg::Update::SharedPtr d){
       double dt = (stamp - last_odom.header.stamp).seconds();
       if(dt > 0.0 && dt < 0.1) {
         
-        // 0.05 deg/s/sqrt(hz) rms noise according to mpu6050 spec
-        double std_angular = 0.05 * M_PI / 180.0 * sqrt(1/dt);
+        // 0.033 deg/s rms noise according to mpu6050 spec
+        // https://invensense.tdk.com/wp-content/uploads/2015/02/MPU-6000-Datasheet1.pdf
+        double std_angular = 0.033 * M_PI / 180.0;
         double cov_angular = std_angular * std_angular;
 
         // twist is relative to the car
@@ -591,9 +608,6 @@ void Car::car_update_topic_callback(const car_msgs::msg::Update::SharedPtr d){
         double std_vz = 0.0;
 
         
-        double cov_angle_x = cov_angular; 
-        double cov_angle_y = cov_angular; 
-        double cov_angle_z = cov_angular;
 
         odom.twist.covariance = 
           //         {
@@ -609,9 +623,9 @@ void Car::car_update_topic_callback(const car_msgs::msg::Update::SharedPtr d){
             std_vx * std_vx, 0, 0, 0, 0, 0,
             0, std_vy * std_vy, 0, 0, 0, 0,
             0, 0, std_vz  * std_vz, 0, 0, 0,
-            0, 0, 0, cov_angle_x, 0, 0,
-            0, 0, 0, 0, cov_angle_y, 0,
-            0, 0, 0, 0, 0, cov_angle_z
+            0, 0, 0, cov_angular, 0, 0,
+            0, 0, 0, 0, cov_angular, 0,
+            0, 0, 0, 0, 0, cov_angular
           };
 
         odom_publisher_->publish(odom);
@@ -680,11 +694,18 @@ void Car::car_update_topic_callback(const car_msgs::msg::Update::SharedPtr d){
           compass.orientation.y = q.y();
           compass.orientation.z = q.z();
           compass.orientation.w = q.w();
+          double compass_error_degrees;
+          get_parameter<double>("compass_error_degrees", compass_error_degrees);
+          double compass_error_factor;
+          get_parameter<double>("compass_error_factor", compass_error_factor);
+          double compass_error_radians = compass_error_degrees * M_PI / 180.0;
+          double compass_std = compass_error_radians * compass_error_factor;
+          double compass_covariance = compass_std * compass_std;
           compass.orientation_covariance = 
             {
-              0.1, 0, 0,
-              0, 0.1, 0,
-              0, 0, 0.1
+              compass_covariance, 0, 0,
+              0, compass_covariance, 0,
+              0, 0, compass_covariance
             };
           // mark all other readings as invalid
           compass.angular_velocity_covariance = 

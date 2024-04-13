@@ -7,6 +7,8 @@ car:
     camera_x: 0.27
     camera_z: 0.135
     compass_correction_degrees: 160.0
+    compass_error_degrees: 5.0
+    compass_error_factor: 1000.0 # makes navigation less sensitive to compass errors
     lidar_x: 0.140
     lidar_z: 0.175  
     curvature_to_str_lookup: [
@@ -24,3 +26,7 @@ car:
       71.9, 1090.0,
       85.1, 986.0 
     ]
+
+gps_fixer:
+  ros__parameters:
+    error_scalar: 100.0 # makes navigation less sensitive to GPS errors
