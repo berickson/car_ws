@@ -233,7 +233,8 @@ public:
 #if defined(BLUE_CAR)
     v_bat = analogRead(pin_vbat_sense) * 0.018829 / 4.0;
 #elif defined(SETH_CAR)
-    v_bat = analogRead(pin_vbat_sense) * 0.018931424;
+    v_bat = analogRead(pin_vbat_sense) * 0.00467307255;
+#else
 #error "voltage not defined for this car"
 #endif
   }
