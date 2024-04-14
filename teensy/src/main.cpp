@@ -491,12 +491,19 @@ bool create_uros_entities()
     ROSIDL_GET_MSG_TYPE_SUPPORT(car_msgs, msg, Update),
     "car/update");
   
-  rclc_publisher_init_default(
+
+  // unfortunately, the nmea sentence message doesn't accept best effort,
+  // publishing to a separate topic so they can be relayed by gps_fixer
+  rclc_publisher_init_best_effort(
     &nmea_sentence_publisher,
     &node,
     ROSIDL_GET_MSG_TYPE_SUPPORT(nmea_msgs, msg, Sentence),
-    "car/gps/nmea_sentence"
+    "car/gps/nmea_sentence_best_effort"
   );
+
+  // // make a super small ack timeout to make sure we don't hang
+  // int ack_timeout = 5;;
+  // rmw_uros_set_publisher_session_timeout(&nmea_sentence_publisher, ack_timeout);
 
   rclc_publisher_init_best_effort(
     &battery_state_publisher,

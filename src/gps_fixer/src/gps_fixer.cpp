@@ -1,5 +1,6 @@
 #include "rclcpp/rclcpp.hpp"
 #include "sensor_msgs/msg/nav_sat_fix.hpp"
+#include "nmea_msgs/msg/sentence.hpp"
 
 class GpsFixer : public rclcpp::Node
 {
@@ -9,6 +10,13 @@ public:
         publisher_ = this->create_publisher<sensor_msgs::msg::NavSatFix>("fix_out", 10);
         subscription_ = this->create_subscription<sensor_msgs::msg::NavSatFix>(
             "fix_in", 10, std::bind(&GpsFixer::topic_callback, this, std::placeholders::_1));
+        
+
+        sentence_subscription_ = this->create_subscription<nmea_msgs::msg::Sentence>(
+            "sentence_in",rclcpp::SensorDataQoS(), 
+            std::bind(&GpsFixer::sentence_callback, this, std::placeholders::_1));
+
+        sentence_publisher_ = this->create_publisher<nmea_msgs::msg::Sentence>("sentence_out", 10);
 
     
         // error_scalar parameter
@@ -24,6 +32,14 @@ public:
     }
 
 private:
+    void sentence_callback(const nmea_msgs::msg::Sentence::SharedPtr msg) const
+    {
+
+        // copy msg
+        auto fixed_msg = std::make_shared<nmea_msgs::msg::Sentence>(*msg);
+        sentence_publisher_->publish(*fixed_msg);
+    }
+
     void topic_callback(const sensor_msgs::msg::NavSatFix::SharedPtr msg) const
     {
         double fixed_std = 10.0; // report 10 meters minimum standard deviation
@@ -55,6 +71,10 @@ private:
 
     rclcpp::Subscription<sensor_msgs::msg::NavSatFix>::SharedPtr subscription_;
     rclcpp::Publisher<sensor_msgs::msg::NavSatFix>::SharedPtr publisher_;
+
+    rclcpp::Subscription<nmea_msgs::msg::Sentence>::SharedPtr sentence_subscription_;
+    rclcpp::Publisher<nmea_msgs::msg::Sentence>::SharedPtr sentence_publisher_;
+
 };
 
 int main(int argc, char * argv[])

@@ -39,7 +39,9 @@ def generate_launch_description():
         executable="gps_fixer",
         remappings=[
             ('fix_in', '/car/gps/fix_raw'),
-            ('fix_out', '/car/gps/fix')
+            ('fix_out', '/car/gps/fix'),
+            ('sentence_in', '/car/gps/nmea_sentence_best_effort'),
+            ('sentence_out', '/car/gps/nmea_sentence')
         ],
         parameters=[default_config, car_config],
     )
