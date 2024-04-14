@@ -118,6 +118,36 @@ const int pin_vbat_sense = 23; // A9;
 
 #endif
 
+#if defined(BEEBOT_CAR)
+
+const int pin_odo_fl_a = 0;
+const int pin_odo_fl_b = 1;
+const int pin_odo_fr_a = 2;
+const int pin_odo_fr_b = 3;
+
+const int pin_str = 7;
+const int pin_esc = 8;
+
+const int pin_motor_a = 10;
+const int pin_motor_b = 11;
+const int pin_motor_c = 12;
+
+const int pin_led = 13;
+
+const int pin_gps_rx = 14;
+const int pin_gps_tx = 15;
+
+#define WireMag Wire1
+const int pin_mag_scl = 16; // Wire1 SCL
+const int pin_mag_sda = 17; // Wire1 SDA
+
+const int pin_elrs_rx = 20; // tx5
+const int pin_elrs_tx = 21; // rx5
+
+const int pin_mpu_interrupt = 22;
+const int pin_vbat_sense = A9;
+
+#endif
 
 ///////////////////////////////////////////////
 // helpers
@@ -234,6 +264,8 @@ public:
     v_bat = analogRead(pin_vbat_sense) * 0.018829 / 4.0;
 #elif defined(SETH_CAR)
     v_bat = analogRead(pin_vbat_sense) * 0.00467307255;
+#elif defined(BEEBOT_CAR)
+    v_bat = analogRead(pin_vbat_sense) * 0.0023750386;
 #else
 #error "voltage not defined for this car"
 #endif
@@ -784,6 +816,14 @@ void setup() {
   mpu9150.yaw_slope_rads_per_ms  = -0.0000000680;
   mpu9150.yaw_actual_per_raw = 1;
 #elif defined(SETH_CAR)
+  mpu9150.ax_bias = 0;
+  mpu9150.ay_bias = 0;
+  mpu9150.az_bias = 7893.51;
+  mpu9150.rest_a_mag =  7893.51;
+  mpu9150.zero_adjust = Quaternion(1.0, 0.0, 0.0, 0.0);
+  mpu9150.yaw_slope_rads_per_ms  = -0.0000000680;
+  mpu9150.yaw_actual_per_raw = 1;
+#elif defined(BEEBOT_CAR)
   mpu9150.ax_bias = 0;
   mpu9150.ay_bias = 0;
   mpu9150.az_bias = 7893.51;
