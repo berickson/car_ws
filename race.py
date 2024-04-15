@@ -4,6 +4,7 @@ from rclpy.node import Node
 from nav2_simple_commander.robot_navigator import BasicNavigator
 from geometry_msgs.msg import PointStamped
 from utils.gps_utils import latLonYaw2Geopose
+import subprocess
 
 
 class InteractiveGpsWpCommander(Node):
@@ -38,23 +39,34 @@ def main():
     rclpy.init()
     navigator = BasicNavigator("basic_navigator")
     navigator.waitUntilNav2Active(localizer='robot_localization')
-    yaw = -90 * 3.14/180.;
-    # wp = [latLonYaw2Geopose(33.8021086, -118.1236532, yaw)]
+    try:
+        yaw = -90 * 3.14/180.;
 
-    # starting position 33.802178, longitude: -118.123382,
-    # hallway
-    
-    wp = [
-        latLonYaw2Geopose(33.8021534, -118.123382, yaw),
-        latLonYaw2Geopose(33.8021484, -118.123372, yaw),
-          ]
-    print()
-    print(wp[0])
-    navigator.followGpsWaypoints(wp)
-    while not navigator.isTaskComplete():
-        print(navigator.getFeedback())
-        print('waiting to complete')
-    print("completed successfully")
+        wp_start = latLonYaw2Geopose(33.802208958398154, -118.12336015943343, yaw)
+        wp_hall = latLonYaw2Geopose(33.802179596462175, -118.12335425382896, yaw)
+        wp_couch_back = latLonYaw2Geopose(33.8021484, -118.123372, yaw)
+        # wp = [wp_start, wp_hall, wp_couch_back]
+        wp = [wp_hall]
+        print()
+        print(wp[0])
+        navigator.followGpsWaypoints(wp)
+        while not navigator.isTaskComplete():
+            print(navigator.getFeedback())
+            print('waiting to complete')
+        print("completed successfully")
+    except KeyboardInterrupt:
+        print("Interrupted")
+    navigator.cancelTask()
+
+    try:
+        # Run the ROS2 node
+        subprocess.run(["ros2", "run", "car_actions", "race"], check=True)
+    except subprocess.CalledProcessError:
+        print("Failed to race")
+
+    # ros2 run car_actions race
+
+    rclpy.shutdown()
 
 if __name__ == "__main__":
     main()
