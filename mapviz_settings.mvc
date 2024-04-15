@@ -1,0 +1,96 @@
+capture_directory: "~"
+fixed_frame: map
+target_frame: map
+fix_orientation: false
+rotate_90: false
+enable_antialiasing: true
+show_displays: true
+show_status_bar: true
+show_capture_tools: true
+window_width: 1920
+window_height: 1198
+view_scale: 0.0496741273
+offset_x: 0
+offset_y: 0
+use_latest_transforms: true
+background: "#a0a0a4"
+image_transport: compressed
+displays:
+  - type: mapviz_plugins/tile_map
+    name: new display
+    config:
+      visible: true
+      collapsed: true
+      custom_sources:
+        []
+      bing_api_key: AmC53mOMvfEsaifMXOYsXCDAiISF86yw89IAvfsolsAlGH-C9CKXuKIpkh0cLmRE
+      source: Bing Maps (terrain)
+  - type: mapviz_plugins/grid
+    name: new display
+    config:
+      visible: true
+      collapsed: true
+      color: "#c0bfbc"
+      alpha: 1
+      frame: map
+      x: -50
+      y: -50
+      size: 5
+      rows: 20
+      columns: 20
+  - type: mapviz_plugins/tf_frame
+    name: new display
+    config:
+      visible: true
+      collapsed: true
+      frame: base_footprint
+      color: "#00ff00"
+      draw_style: arrows
+      position_tolerance: 2
+      buffer_size: 1
+      static_arrow_sizes: true
+      arrow_size: 58
+  - type: mapviz_plugins/image
+    name: new display
+    config:
+      visible: true
+      collapsed: true
+      topic: /car/oakd/color/image
+      anchor: top left
+      units: pixels
+      offset_x: 0
+      offset_y: 0
+      width: 320
+      height: 180
+      keep_ratio: true
+      image_transport: default
+  - type: mapviz_plugins/point_click_publisher
+    name: new display
+    config:
+      visible: true
+      collapsed: false
+      topic: clicked_point
+      output_frame: wgs84
+  - type: mapviz_plugins/navsat
+    name: new display
+    config:
+      visible: true
+      collapsed: false
+      topic: /gps/filtered
+      color: "#1a5fb4"
+      draw_style: lines
+      position_tolerance: 0
+      buffer_size: 0
+  - type: mapviz_plugins/gps
+    name: new display
+    config:
+      visible: true
+      collapsed: false
+      topic: gps/fix
+      color: "#ff7800"
+      draw_style: arrows
+      position_tolerance: 0
+      buffer_size: 0
+      show_laps: false
+      static_arrow_sizes: true
+      arrow_size: 118
