@@ -9,8 +9,8 @@
 bt_navigator:
   ros__parameters:
     global_frame: map
-    robot_base_frame: base_link
-    odom_topic: /odom
+    robot_base_frame: base_footprint
+    odom_topic: car/odom
     bt_loop_duration: 10
     default_server_timeout: 20
     navigators: ["navigate_to_pose", "navigate_through_poses"]
@@ -103,8 +103,8 @@ controller_server:
     general_goal_checker:
       stateful: True
       plugin: "nav2_controller::SimpleGoalChecker"
-      xy_goal_tolerance: 0.25
-      yaw_goal_tolerance: 0.25
+      xy_goal_tolerance: 0.5
+      yaw_goal_tolerance: 6.25
     # DWB parameters
     FollowPath:
       plugin: "dwb_core::DWBLocalPlanner"
@@ -132,7 +132,7 @@ controller_server:
       linear_granularity: 0.05
       angular_granularity: 0.025
       transform_tolerance: 0.2
-      xy_goal_tolerance: 0.25
+      xy_goal_tolerance: 0.5
       trans_stopped_velocity: 0.25
       short_circuit_trajectory_evaluation: True
       stateful: True
@@ -149,45 +149,90 @@ controller_server:
       RotateToGoal.lookahead_time: -1.0
 
 # GPS WPF CHANGE: Remove static layer
+# local_costmap:
+#   local_costmap:
+#     ros__parameters:
+#       update_frequency: 5.0
+#       publish_frequency: 2.0
+#       global_frame: odom
+#       robot_base_frame: base_footprint
+#       rolling_window: true
+#       width: 3
+#       height: 3
+#       resolution: 0.05
+#       #robot_radius: 0.22
+#       footprint: "[ [-0.05, 0.15], [0.40,0.15], [0.40,-0.15], [0.15,-0.15], [-0.05,-0.15] ]"
+#       plugins: ["voxel_layer", "inflation_layer"]
+#       inflation_layer:
+#         plugin: "nav2_costmap_2d::InflationLayer"
+#         cost_scaling_factor: 3.0
+#         inflation_radius: 0.55
+#       voxel_layer:
+#         plugin: "nav2_costmap_2d::VoxelLayer"
+#         enabled: True
+#         publish_voxel_map: True
+#         origin_z: 0.0
+#         z_resolution: 0.05
+#         z_voxels: 16
+#         max_obstacle_height: 2.0
+#         mark_threshold: 0
+#         observation_sources: scan
+#         scan:
+#           topic: scan
+#           max_obstacle_height: 2.0
+#           clearing: True
+#           marking: True
+#           data_type: "LaserScan"
+#           raytrace_max_range: 3.0
+#           raytrace_min_range: 0.0
+#           obstacle_max_range: 2.5
+#           obstacle_min_range: 0.0
+#       always_send_full_costmap: True
 local_costmap:
   local_costmap:
     ros__parameters:
       update_frequency: 5.0
-      publish_frequency: 2.0
-      global_frame: odom
-      robot_base_frame: base_link
+      publish_frequency: 5.0
+      global_frame: map
+      robot_base_frame: base_footprint
+      use_sim_time: False
       rolling_window: true
-      width: 3
-      height: 3
-      resolution: 0.05
-      robot_radius: 0.22
-      plugins: ["voxel_layer", "inflation_layer"]
-      inflation_layer:
-        plugin: "nav2_costmap_2d::InflationLayer"
-        cost_scaling_factor: 3.0
-        inflation_radius: 0.55
-      voxel_layer:
-        plugin: "nav2_costmap_2d::VoxelLayer"
+      width: 6
+      height: 6
+      resolution: 0.1 
+      footprint: "[ [-0.05, 0.15], [0.40,0.15], [0.40,-0.15], [0.15,-0.15], [-0.05,-0.15] ]"
+      footprint_padding: 0.0
+      #plugins: ["static_layer", "inflation_layer", "obstacle_layer"]
+      plugins: ["obstacle_layer", "inflation_layer" ]
+      #static_layer:
+      #  plugin: "nav2_costmap_2d::StaticLayer"
+      #   map_subscribe_transient_local: False
+      #   map_topic: /map
+      #   enabled: True
+      obstacle_layer:
+        plugin: "nav2_costmap_2d::ObstacleLayer"
         enabled: True
-        publish_voxel_map: True
-        origin_z: 0.0
-        z_resolution: 0.05
-        z_voxels: 16
-        max_obstacle_height: 2.0
-        mark_threshold: 0
         observation_sources: scan
+        footprint_clearing_enabled: True
+        combination_method: 0 # overwrite with every valid observation
+
         scan:
           topic: /scan
+          sensor_frame: laser_scanner_link
           max_obstacle_height: 2.0
           clearing: True
           marking: True
           data_type: "LaserScan"
-          raytrace_max_range: 3.0
-          raytrace_min_range: 0.0
-          obstacle_max_range: 2.5
-          obstacle_min_range: 0.0
+          raytrace_max_range: 10.0
+          raytrace_min_range: 0.2
+          obstacle_max_range: 5.0
+          obstacle_min_range: 0.2        
+      inflation_layer:
+        plugin: "nav2_costmap_2d::InflationLayer"
+        cost_scaling_factor: 3.0
+        inflation_radius: 0.55
+        enabled: True
       always_send_full_costmap: True
-
 # GPS WPF CHANGE: Remove static layer
 # GPS WPF CHANGE: Set rolling global costmap with 50x50 size. See note below
 global_costmap:
@@ -196,15 +241,15 @@ global_costmap:
       update_frequency: 1.0
       publish_frequency: 1.0
       global_frame: map
-      robot_base_frame: base_link
-      robot_radius: 0.22
+      robot_base_frame: base_footprint
+      footprint: "[ [-0.05, 0.15], [0.40,0.15], [0.40,-0.15], [0.15,-0.15], [-0.05,-0.15] ]"
       resolution: 0.1
       # When using GPS navigation you will potentially traverse huge environments which are not practical to
       # fit on a big static costmap. Thus it is recommended to use a rolling global costmap large enough to 
       # contain each pair of successive waypoints. See: https://github.com/ros-planning/navigation2/issues/2174
       rolling_window: True
-      width: 50
-      height: 50
+      width: 100
+      height: 100
       track_unknown_space: true
       # no static map
       plugins: ["obstacle_layer", "inflation_layer"]
@@ -283,7 +328,7 @@ behavior_server:
       plugin: "nav2_behaviors/AssistedTeleop"
     local_frame: odom
     global_frame: map
-    robot_base_frame: base_link
+    robot_base_frame: base_footprint
     transform_tolerance: 0.1
     simulate_ahead_time: 2.0
     max_rotational_vel: 1.0
@@ -302,14 +347,14 @@ waypoint_follower:
 
 velocity_smoother:
   ros__parameters:
-    smoothing_frequency: 20.0
-    scale_velocities: False
-    feedback: "OPEN_LOOP"
-    max_velocity: [0.26, 0.0, 1.0]
-    min_velocity: [-0.26, 0.0, -1.0]
-    max_accel: [2.5, 0.0, 3.2]
-    max_decel: [-2.5, 0.0, -3.2]
-    odom_topic: "odom"
-    odom_duration: 0.1
-    deadband_velocity: [0.0, 0.0, 0.0]
-    velocity_timeout: 1.0
+    smoothing_frequency: 20.0             # Hz
+    scale_velocities: true                # true = adjust angular to keep same trajectory
+    feedback: "OPEN_LOOP"                 # CLOSED_LOOP means use velocities from odom, odom must be high rate compared to smoothing_frequency
+    max_velocity: [5.0, 0.0, 92.5]         # x, y, theta
+    min_velocity: [-5.0, 0.0, -92.5]       # x, y, theta, maximum reverse velocities (should be negative)
+    deadband_velocity: [0.0, 0.0, 0.0]    # velocities less than this will be translted to zero
+    velocity_timeout: 1.0                 # if no cmd_vel is sent after this time, zeros will be sent
+    max_accel: [2.5, 0.0, 933.2]
+    max_decel: [-2.5, 0.0, -933.2]
+    odom_topic: "car/odom"                    # topic for closed loop velocities
+    odom_duration: 0.1                    # time to buffer odometry to esimate speed
