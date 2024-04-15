@@ -2,3 +2,8 @@ car:
   ros__parameters:
     robot_id: beebot
     camera_pitch_degrees: 5.0
+    compass_correction_degrees: 165.0
+    mag_x_min: -953.0
+    mag_x_max: 798.0
+    mag_y_min: -650.0
+    mag_y_max: 1090.0
