@@ -17,10 +17,18 @@ def generate_launch_description():
     #    "nav2_gps_waypoint_follower_demo")
     #launch_dir = os.path.join(gps_wpf_dir, 'launch')
     # params_dir = os.path.join(gps_wpf_dir, "config")
+
+    behavior_tree_path = os.path.join(
+        bringup_dir,
+        'behavior_trees',
+        'navigate_w_replanning_time2.xml')
     params_dir = "."
     nav2_params = os.path.join(params_dir, "nav2_no_map_params.yaml")
     configured_params = RewrittenYaml(
-        source_file=nav2_params, root_key="", param_rewrites="", convert_types=True
+        source_file=nav2_params, 
+        root_key="", 
+        param_rewrites={'default_nav_to_pose_bt_xml': behavior_tree_path}, 
+        convert_types=True
     )
 
     navigation2_cmd = IncludeLaunchDescription(
