@@ -14,6 +14,9 @@ class InteractiveGpsWpCommander(Node):
 
     def __init__(self):
         super().__init__(node_name="gps_wp_commander")
+
+        # see: 
+        # https://github.com/ros-planning/navigation2/blob/main/nav2_simple_commander/nav2_simple_commander/robot_navigator.py
         self.navigator = BasicNavigator("basic_navigator")
 
         self.mapviz_wp_sub = self.create_subscription(
