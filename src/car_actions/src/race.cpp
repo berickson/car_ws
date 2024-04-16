@@ -135,10 +135,10 @@ int main(int argc, char** argv) {
   rclcpp::init(argc, argv);
   //goto_cone();
   //back_up(1.0);
-  goto_pose("base_link", 1.5, 1.5, 90);
+  //goto_pose("base_link", 1.5, 1.5, 90);
   goto_cone();
-  goto_pose("base_link", 0.0, 0.0, 200);
-  goto_cone();
+  //goto_pose("base_link", 0.0, 0.0, 200);
+  //goto_cone();
   return 0;
   /*
   // create ConeFollowerClient node
