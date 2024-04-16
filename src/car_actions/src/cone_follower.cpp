@@ -8,6 +8,8 @@
 #include "rclcpp_action/server.hpp"
 #include "rclcpp_action/rclcpp_action.hpp"
 
+#include <limits>
+
 using namespace std::placeholders;
 
 
@@ -77,7 +79,7 @@ public:
       float cone_distance = (cone_width/2.0) / sin(width_radians/2.0);
 
       // find scan line in center of cone and print distance
-      float scan_distance = float('inf');
+      float scan_distance = std::numeric_limits<float>::infinity();
       int min_scan_index = -1;
 
       // we'll just look at the center of the scan
