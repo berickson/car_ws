@@ -106,6 +106,6 @@ def generate_launch_description():
     ld.add_action(detection_visualizer)
     ld.add_action(ekf)
     ld.add_action(scan_filter)
-    ld.add_action(nav)
+    # ld.add_action(nav)
 
     return ld
