@@ -1,13 +1,9 @@
 #!/usr/bin/env python3
 
-# import all the ros stuff, including imu and gps vel messages
 import rclpy
 from rclpy.node import Node
-from sensor_msgs.msg import Imu
 from car_msgs.msg import Update
-from geometry_msgs.msg import TwistStamped
 from rclpy.qos import qos_profile_sensor_data
-import math
 
 class CompassCalibration(Node):
   def __init__(self):
