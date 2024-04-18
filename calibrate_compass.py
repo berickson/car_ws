@@ -7,7 +7,6 @@ from sensor_msgs.msg import Imu
 from car_msgs.msg import Update
 from geometry_msgs.msg import TwistStamped
 from rclpy.qos import qos_profile_sensor_data
-from utils.gps_utils import euler_from_quaternion
 import math
 
 class CompassCalibration(Node):
