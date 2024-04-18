@@ -4,7 +4,7 @@ from rclpy.node import Node
 from std_msgs.msg import Header
 from rclpy.action import ActionClient
 from nav2_simple_commander.robot_navigator import BasicNavigator
-from geometry_msgs.msg import PointStamped, Quaternion
+from geometry_msgs.msg import PointStamped, Quaternion, Twist
 from utils.gps_utils import latLonYaw2Geopose
 from car_msgs.msg import Update
 from car_msgs.action import FollowCone
@@ -78,8 +78,29 @@ class RaceNode(Node):
 
         self.gps_pub = self.create_publisher(NavSatFix, '/car/gps/fix', 10)
         self.compass_pub = self.create_publisher(Imu, '/car/compass', 10)
+        self.cmd_vel_pub = self.create_publisher(Twist, '/cmd_vel', 10)
 
         self.enabled = False
+    
+    def back_up(self, velocity, seconds):
+        print("backing up")
+        global cancel
+        if cancel: return
+
+        twist = Twist()
+        twist.linear.x = -velocity
+        twist.angular.z = 0.0
+        waited = 0.0
+        while waited < seconds:
+            if cancel: break
+            self.cmd_vel_pub.publish(twist)
+            #rclpy.spin_once(self)
+            time.sleep(0.1)
+            waited += 0.1
+        twist.linear.x = 0.0
+        self.cmd_vel_pub.publish(twist)
+        #rclpy.spin_once(self)
+        
 
     def publish_gps(self, lat, lon):
         msg = NavSatFix()
@@ -173,8 +194,8 @@ def main():
     eldo_start =    [33.822141, -118.0893215]
     eldo_mid =      [33.8221759,-118.0891911]
     eldo_cone1 =    [33.8220967, -118.0891856]
-    wp_hall_mid =   [33.802161699111736, -118.12336089799598]
-    wp_hall     =   [33.80215158730133, -118.12336089799598]
+    wp_hall_mid =   [33.80217, -118.12336089799598]
+    wp_hall     =   [33.802165, -118.12336089799598]
     wp_couch_back = [33.802170,  -118.123332]
 
     # routes
@@ -207,15 +228,15 @@ def main():
 
 
 
-    try:
-        navigator.followGpsWaypoints(route_geoposes)
-    except KeyboardInterrupt:
-        pass
-    print('navigating waypoints')
-    while not cancel and not navigator.isTaskComplete() and race_node.is_enabled():
-        print(navigator.getFeedback())
-    print("waypoint navigation done")
-    navigator.cancelTask()
+    # try:
+    #     navigator.followGpsWaypoints(route_geoposes)
+    # except KeyboardInterrupt:
+    #     pass
+    # print('navigating waypoints')
+    # while not cancel and not navigator.isTaskComplete() and race_node.is_enabled():
+    #     print(navigator.getFeedback())
+    # print("waypoint navigation done")
+    # navigator.cancelTask()
 
     if cancel: return
 
@@ -252,9 +273,10 @@ def main():
         cancel_future = goal_handle.cancel_goal_async()
         rclpy.spin_until_future
 
-
-        
     print("follow cone complete")
+
+    if not cancel:
+        race_node.back_up(velocity=0.5, seconds=3.0)
 
     rclpy.shutdown()
 
