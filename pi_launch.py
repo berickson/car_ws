@@ -90,6 +90,10 @@ def generate_launch_description():
         PythonLaunchDescriptionSource('ekf_launch.py')
     )
 
+    nav = IncludeLaunchDescription(
+        PythonLaunchDescriptionSource('nav_launch.py')
+    )
+
 
     ld.add_action(micro_ros_agent)
     ld.add_action(lidar_launch)
@@ -102,5 +106,6 @@ def generate_launch_description():
     ld.add_action(detection_visualizer)
     ld.add_action(ekf)
     ld.add_action(scan_filter)
+    ld.add_action(nav)
 
     return ld
