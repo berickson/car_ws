@@ -13,7 +13,7 @@ class RouteScribe(Node):
     self.get_logger().info("Route scribe node started")
     
   def clicked_point_cb(self, msg:PointStamped):
-    print(f"{{{msg.point.x}, {msg.point.y}}},")
+    print(f"[{msg.point.y}, {msg.point.x} ],")
 
 if __name__ == '__main__':
   rclpy.init()

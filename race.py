@@ -26,8 +26,6 @@ class RaceNode(Node):
         # https://github.com/ros-planning/navigation2/blob/main/nav2_simple_commander/nav2_simple_commander/robot_navigator.py
         self.navigator = BasicNavigator("basic_navigator")
 
-        self.mapviz_wp_sub = self.create_subscription(
-            PointStamped, "/clicked_point", self.mapviz_wp_cb, 1)
         self.car_update_sub = self.create_subscription(Update, "/car/update", self.car_update_cb, qos_profile=qos_profile_sensor_data)
 
         self.gps_pub = self.create_publisher(NavSatFix, '/car/gps/fix', 10)
@@ -61,22 +59,6 @@ class RaceNode(Node):
         self.compass_pub.publish(msg)
 
 
-
-    def mapviz_wp_cb(self, msg: PointStamped):
-        """
-        clicked point callback, sends received point to nav2 gps waypoint follower if its a geographic point
-        """
-        if msg.header.frame_id != "wgs84":
-            self.get_logger().warning(
-                "Received point from mapviz that ist not in wgs84 frame. This is not a gps point and wont be followed")
-            return
-
-        self.navigator.waitUntilNav2Active(localizer='robot_localization')
-        wp = [latLonYaw2Geopose(msg.point.y, msg.point.x)]
-        self.navigator.followGpsWaypoints(wp)
-        if (self.navigator.isTaskComplete()):
-            self.get_logger().info("wps completed successfully")
-
     def car_update_cb(self, msg: Update):
         self.enabled = msg.mode == "auto"
     
@@ -96,11 +78,13 @@ def main():
     navigator = BasicNavigator("basic_navigator")
     navigator.waitUntilNav2Active(localizer='robot_localization')
 
+    wp_start    =   [33.802174844465256, -118.12336180642738,-90 ]
+
     # send fake gps point to nav2
     print("setting starting location")
- #   for _ in range(5):
- #       race_node.publish_gps(33.802208958398154, -118.12336015943343)
- #       race_node.publish_compass_degrees(-90);
+    for _ in range(5):
+        race_node.publish_gps(wp_start[0], wp_start[1])
+        race_node.publish_compass_degrees(math.pi / 180. * wp_start[2]);
     
 
     printed = False
@@ -113,25 +97,45 @@ def main():
     print("auto mode enabled")
     
     try:
-        yaw = -90 * 3.14/180.;
 
-        eldo_start = latLonYaw2Geopose(33.822141, -118.0893215, -12*3.14/180.)
-        eldo_mid = latLonYaw2Geopose(33.8221759,-118.0891911,0.0)
-        eldo_cone1 = latLonYaw2Geopose(33.8220967, -118.0891856, -12*3.14/180.)
-        wp_start    = latLonYaw2Geopose(33.802208958398154, -118.12336015943343, yaw)
-        wp_hall     = latLonYaw2Geopose(33.802179596462175, -118.12335925382896, yaw)
-        wp_hall_mid = latLonYaw2Geopose(33.802189596462175, -118.12335985382896, yaw)
-        wp_couch_back = latLonYaw2Geopose(33.802170 ,       -118.123332, yaw)
-        # wp = [wp_start, wp_hall, wp_couch_back]
-        #wp = [wp_hall_mid, wp_hall ]
-        wp = [eldo_mid, eldo_cone1]
-        print()
-        print(wp[0])
-        navigator.followGpsWaypoints(wp)
+
+        # waypoints
+
+        eldo_start =    [33.822141, -118.0893215]
+        eldo_mid =      [33.8221759,-118.0891911]
+        eldo_cone1 =    [33.8220967, -118.0891856]
+        wp_hall_mid =   [33.802161699111736, -118.12336089799598,-90]
+        wp_hall     =   [33.80215158730133, -118.1233545389763, -70]
+        wp_couch_back = [33.802170,  -118.123332]
+
+        # routes
+        # front door
+
+        route_inside_house = [wp_hall_mid, wp_hall];
+        route_through_front_door = [
+            [-118.12335692041168, 33.802147026711815],
+            [-118.12335630151807, 33.80211912648005],
+            [-118.12331916790136, 33.802124293189635],
+            [-118.12327893981654, 33.80212790988635],
+            [-118.12325975411457, 33.80212790988635],
+            [-118.12325418407208, 33.802111893086625],
+            [-118.12325294628485, 33.80209380960308],
+            [-118.123251089604, 33.802076242790484],
+        ]
+
+        route_eldo = [eldo_mid, eldo_cone1]
+
+        route = route_inside_house
+
+        route_geoposes = [latLonYaw2Geopose(wp[0], wp[1], math.pi / 180. * wp[2] ) for wp in route]
+
+
+
+        navigator.followGpsWaypoints(route_geoposes)
+        print('navigating waypoints')
         while not navigator.isTaskComplete() and race_node.is_enabled():
             print(navigator.getFeedback())
-            print('waiting to complete')
-        print("completed successfully")
+        print("waypoint navigation done")
     except KeyboardInterrupt:
         print("Interrupted")
     navigator.cancelTask()
@@ -162,6 +166,11 @@ def main():
             printed = True
         
     print("follow cone complete")
+
+    print("backup")
+    navigator.backup(backup_dist=1.0, backup_speed = 0.5, time_allowance=10)
+    print("backup complete");
+
 
     rclpy.shutdown()
 
