@@ -12,6 +12,18 @@ from rclpy.qos import qos_profile_sensor_data
 from sensor_msgs.msg import NavSatFix, Imu
 import time
 import math
+import signal
+import sys
+
+cancel = False
+
+def signal_handler(sig, frame):
+    global cancel
+    cancel = True
+    print('Ctrl-C detected, setting cancel to True')
+
+# Set the signal handler
+signal.signal(signal.SIGINT, signal_handler)
 
 
 # returns degrees heading between two points in ENU degrees
@@ -121,6 +133,7 @@ def test_bearing():
 
 
 def main():
+    global cancel
     print("race code started")
     rclpy.init()
     race_node = RaceNode()
@@ -140,63 +153,71 @@ def main():
     printed = False
     navigator.clearAllCostmaps()
     time.sleep(1)
-    while not race_node.is_enabled():
-        if not printed:
-            print("waiting for auto mode")
-            printed = True
+    try:
+        while not cancel and not race_node.is_enabled():
+            if not printed:
+                print("waiting for auto mode")
+                printed = True
+    except KeyboardInterrupt:
+        pass
+    
+    if cancel: 
+        print("cancelling")
+        return
+
     print("auto mode enabled")
     
+
+    # waypoints
+
+    eldo_start =    [33.822141, -118.0893215]
+    eldo_mid =      [33.8221759,-118.0891911]
+    eldo_cone1 =    [33.8220967, -118.0891856]
+    wp_hall_mid =   [33.802161699111736, -118.12336089799598]
+    wp_hall     =   [33.80215158730133, -118.12336089799598]
+    wp_couch_back = [33.802170,  -118.123332]
+
+    # routes
+    # front door
+
+    route_inside_house = [wp_hall_mid, wp_hall];
+    route_through_front_door = [
+        [-118.12335692041168, 33.802147026711815],
+        [-118.12335630151807, 33.80211912648005],
+        [-118.12331916790136, 33.802124293189635],
+        [-118.12327893981654, 33.80212790988635],
+        [-118.12325975411457, 33.80212790988635],
+        [-118.12325418407208, 33.802111893086625],
+        [-118.12325294628485, 33.80209380960308],
+        [-118.123251089604, 33.802076242790484],
+    ]
+
+    route_eldo = [eldo_mid, eldo_cone1]
+
+    route = route_inside_house
+
+    add_yaws_to_route(route)
+
+    # print route
+    print("route: ")
+    for wp in route:
+        print(wp)
+
+    route_geoposes = [latLonYaw2Geopose(wp[0], wp[1], math.pi / 180. * wp[2] ) for wp in route]
+
+
+
     try:
-
-
-        # waypoints
-
-        eldo_start =    [33.822141, -118.0893215]
-        eldo_mid =      [33.8221759,-118.0891911]
-        eldo_cone1 =    [33.8220967, -118.0891856]
-        wp_hall_mid =   [33.802161699111736, -118.12336089799598]
-        wp_hall     =   [33.80215158730133, -118.12336089799598]
-        wp_couch_back = [33.802170,  -118.123332]
-
-        # routes
-        # front door
-
-        route_inside_house = [wp_hall_mid, wp_hall];
-        route_through_front_door = [
-            [-118.12335692041168, 33.802147026711815],
-            [-118.12335630151807, 33.80211912648005],
-            [-118.12331916790136, 33.802124293189635],
-            [-118.12327893981654, 33.80212790988635],
-            [-118.12325975411457, 33.80212790988635],
-            [-118.12325418407208, 33.802111893086625],
-            [-118.12325294628485, 33.80209380960308],
-            [-118.123251089604, 33.802076242790484],
-        ]
-
-        route_eldo = [eldo_mid, eldo_cone1]
-
-        route = route_inside_house
-
-        add_yaws_to_route(route)
-
-        # print route
-        print("route: ")
-        for wp in route:
-            print(wp)
-
-        route_geoposes = [latLonYaw2Geopose(wp[0], wp[1], math.pi / 180. * wp[2] ) for wp in route]
-
-
-
         navigator.followGpsWaypoints(route_geoposes)
-        print('navigating waypoints')
-        while not navigator.isTaskComplete() and race_node.is_enabled():
-            print(navigator.getFeedback())
-        print("waypoint navigation done")
     except KeyboardInterrupt:
-        print("Interrupted")
+        pass
+    print('navigating waypoints')
+    while not cancel and not navigator.isTaskComplete() and race_node.is_enabled():
+        print(navigator.getFeedback())
+    print("waypoint navigation done")
     navigator.cancelTask()
 
+    if cancel: return
 
     cone_follower = ActionClient(race_node, FollowCone, "follow_cone")
     cone_follower.wait_for_server()
@@ -210,24 +231,30 @@ def main():
         return
     result_future = goal_handle.get_result_async() 
 
-    while not result_future.result():
-        if not race_node.is_enabled():
-            print("auto mode disabled, cancelling goal")
-            cancel_future = goal_handle.cancel_goal_async()
-            rclpy.spin_until_future_complete(race_node, cancel_future)
-            print("goal cancelled")
-            break
+    try:
+        while not cancel and not result_future.result():
+            if not race_node.is_enabled():
+                print("auto mode disabled, cancelling goal")
+                cancel_future = goal_handle.cancel_goal_async()
+                rclpy.spin_until_future_complete(race_node, cancel_future)
+                print("goal cancelled")
+                break
 
-        if not printed:
-            print("waiting for follow cone action to complete")
-            printed = True
+            if not printed:
+                print("waiting for follow cone action to complete")
+                printed = True
+    except KeyboardInterrupt:
+        pass
+    
+    # cancel goal if not complete
+    if not result_future.result():
+        print("cancelling goal")
+        cancel_future = goal_handle.cancel_goal_async()
+        rclpy.spin_until_future
+
+
         
     print("follow cone complete")
-
-    print("backup")
-    navigator.backup(backup_dist=1.0, backup_speed = 0.5, time_allowance=10)
-    print("backup complete");
-
 
     rclpy.shutdown()
 
