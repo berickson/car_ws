@@ -38,10 +38,10 @@ class CompassCalibration(Node):
       print("---- Drive in circles until the numbers stop changing ----")
       print("---- then save the results to your yaml configuration ----")
       print("----------------------------------------------------------")
-      print(f"mag_x_max: {self.mag_x_max}")
-      print(f"mag_x_min: {self.mag_x_min}")
-      print(f"mag_y_max: {self.mag_y_max}")
-      print(f"mag_y_min: {self.mag_y_min}")
+      print(f"    mag_x_max: {self.mag_x_max}")
+      print(f"    mag_x_min: {self.mag_x_min}")
+      print(f"    mag_y_max: {self.mag_y_max}")
+      print(f"    mag_y_min: {self.mag_y_min}")
 
 
 
