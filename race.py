@@ -10,6 +10,7 @@ from car_msgs.msg import Update
 from car_msgs.action import FollowCone
 from rclpy.qos import qos_profile_sensor_data
 from sensor_msgs.msg import NavSatFix, Imu
+from vision_msgs.msg import Detection2DArray
 import time
 import math
 import signal
@@ -79,6 +80,7 @@ class RaceNode(Node):
         self.gps_pub = self.create_publisher(NavSatFix, '/car/gps/fix', 10)
         self.compass_pub = self.create_publisher(Imu, '/car/compass', 10)
         self.cmd_vel_pub = self.create_publisher(Twist, '/cmd_vel', 10)
+        self.cone_detection_sub = self.create_subscription(Detection2DArray, '/car/oakd/color/cone_detections', self.cone_detection_cb, qos_profile=qos_profile_sensor_data)
 
         self.enabled = False
     
@@ -126,6 +128,33 @@ class RaceNode(Node):
         msg.orientation = Quaternion(x=0.0, y=0.0, z=sin_half_yaw, w=cos_half_yaw)
         msg.orientation_covariance = [1.0E-6, 0.0, 0.0, 0.0, 1.0E-6, 0.0, 0.0, 0.0, 1.0E-6]
         self.compass_pub.publish(msg)
+
+    def cone_detection_cb(self, msg: Detection2DArray):
+        try:
+            x_fov_degrees = 69;
+            x_resolution = 320;
+            if len(msg.detections) == 0:
+                self.cone_in_sight = False
+                return
+            
+            # find the index of the closest (widest) detection
+            max_width = 0
+            max_width_index = 0
+            for i in range(len(msg.detections)):
+                width = msg.detections[i].bbox.size_x
+                if width > max_width:
+                    max_width = width
+                    max_width_index = i
+            
+
+            x =  msg.detections[max_width_index].bbox.center.position.x
+            if x > x_resolution * 0.2 and x < x_resolution * 0.8:
+                self.cone_in_sight = True
+        except Exception as e:
+            print(e)
+            self.cone_in_sight = False
+            print("error in cone detection callback")
+        
 
 
     def car_update_cb(self, msg: Update):
@@ -228,15 +257,18 @@ def main():
 
 
 
-    # try:
-    #     navigator.followGpsWaypoints(route_geoposes)
-    # except KeyboardInterrupt:
-    #     pass
-    # print('navigating waypoints')
-    # while not cancel and not navigator.isTaskComplete() and race_node.is_enabled():
-    #     print(navigator.getFeedback())
-    # print("waypoint navigation done")
-    # navigator.cancelTask()
+    try:
+        navigator.followGpsWaypoints(route_geoposes)
+    except KeyboardInterrupt:
+        pass
+    print('navigating waypoints')
+    while not cancel and not navigator.isTaskComplete() and race_node.is_enabled():
+        if race_node.cone_in_sight:
+            print("cone in sight, cancelling waypoint navigation")
+            break
+        print(navigator.getFeedback())
+    print("waypoint navigation done")
+    navigator.cancelTask()
 
     if cancel: return
 
