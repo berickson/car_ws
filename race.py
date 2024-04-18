@@ -14,6 +14,42 @@ import time
 import math
 
 
+# returns degrees heading between two points in ENU degrees
+def get_bearing(lat1, lon1, lat2, lon2):
+    dLon = (lon2 - lon1)
+    x = math.cos(math.radians(lat2)) * math.sin(math.radians(dLon))
+    y = math.cos(math.radians(lat1)) * math.sin(math.radians(lat2)) \
+        - math.sin(math.radians(lat1)) * math.cos(math.radians(lat2)) * math.cos(math.radians(dLon))
+    bearing = math.atan2(y,x)
+    bearing = math.degrees(bearing)
+
+    return bearing
+
+
+# adds yaws to all waypoints in route that don't have one yet
+def add_yaws_to_route(route):
+    # start and end points point to connected point
+    if len(route[0]) < 3:
+        lat1, lon1 = route[0][0], route[0][1]
+        lat2, lon2 = route[1][0], route[1][1]
+        bearing = get_bearing(lat1, lon1, lat2, lon2)
+        route[0].append(bearing)
+    if len(route[-1]) < 3:
+        lat1, lon1 = route[-2][0], route[-2][1]
+        lat2, lon2 = route[-1][0], route[-1][1]
+        bearing = get_bearing(lat1, lon1, lat2, lon2)
+        route[-1].append(bearing)
+
+    # other points use bearing from previous to next point
+    for i in range(2, len(route)-1):
+        if len(route[i]) == 3:
+            continue
+        lat1, lon1 = route[ADD-1][0], route[i-1][1]
+        lat2, lon2 = route[i+1][0], route[i+1][1]
+        bearing = get_bearing(lat1, lon1, lat2, lon2)
+        route[i].append(bearing)
+
+
 class RaceNode(Node):
     """
     ROS2 node to send gps waypoints to nav2 received from mapviz's point click publisher
@@ -72,19 +108,33 @@ class RaceNode(Node):
         return
 
 
+def test_bearing():
+    wp = [33,-118]
+    west = [33, -118.1]
+    east = [33, -117.9]
+    north = [33.1, -118]
+    south = [32.9, -118]
+    print(f"expect -90, actual {get_bearing(wp[0], wp[1], south[0], south[1])}")
+    print(f"expect 90, actual {get_bearing(wp[0], wp[1], north[0], north[1])}")
+    print(f"expect 0, actual {get_bearing(wp[0], wp[1], east[0], east[1])}")
+    print(f"expect 180, actual {get_bearing(wp[0], wp[1], west[0], west[1])}")
+
+
 def main():
+    print("race code started")
     rclpy.init()
     race_node = RaceNode()
     navigator = BasicNavigator("basic_navigator")
     navigator.waitUntilNav2Active(localizer='robot_localization')
 
-    wp_start    =   [33.802174844465256, -118.12336180642738,-90 ]
+    wp_start    =   [33.802174844465256, -118.123360897995988,-90 ]
 
-    # send fake gps point to nav2
+    # # send fake gps point to nav2
     print("setting starting location")
     for _ in range(5):
         race_node.publish_gps(wp_start[0], wp_start[1])
-        race_node.publish_compass_degrees(math.pi / 180. * wp_start[2]);
+        race_node.publish_compass_degrees(math.pi / 180. * wp_start[2])
+        time.sleep(0.1)
     
 
     printed = False
@@ -104,8 +154,8 @@ def main():
         eldo_start =    [33.822141, -118.0893215]
         eldo_mid =      [33.8221759,-118.0891911]
         eldo_cone1 =    [33.8220967, -118.0891856]
-        wp_hall_mid =   [33.802161699111736, -118.12336089799598,-90]
-        wp_hall     =   [33.80215158730133, -118.1233545389763, -70]
+        wp_hall_mid =   [33.802161699111736, -118.12336089799598]
+        wp_hall     =   [33.80215158730133, -118.12336089799598]
         wp_couch_back = [33.802170,  -118.123332]
 
         # routes
@@ -126,6 +176,13 @@ def main():
         route_eldo = [eldo_mid, eldo_cone1]
 
         route = route_inside_house
+
+        add_yaws_to_route(route)
+
+        # print route
+        print("route: ")
+        for wp in route:
+            print(wp)
 
         route_geoposes = [latLonYaw2Geopose(wp[0], wp[1], math.pi / 180. * wp[2] ) for wp in route]
 
