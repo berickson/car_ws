@@ -15,6 +15,16 @@ import time
 import math
 import signal
 import sys
+# sudo apt install ros-iron-geodesy
+from geodesy import utm
+import tf2_ros
+import tf2_py as tf2
+from tf2_geometry_msgs import PointStamped
+import tf2_geometry_msgs
+from geographic_msgs.msg import GeoPoint
+from geodesy.utm import fromLatLong
+from geometry_msgs.msg import Point
+import math
 
 cancel = False
 
@@ -26,6 +36,15 @@ def signal_handler(sig, frame):
 # Set the signal handler
 signal.signal(signal.SIGINT, signal_handler)
 
+def great_circle_distance(lat1, lon1, lat2, lon2):
+    R = 6371e3
+    phi1 = math.radians(lat1)
+    phi2 = math.radians(lat2)
+    delta_phi = math.radians(lat2 - lat1)
+    delta_lambda = math.radians(lon2 - lon1)
+    a = math.sin(delta_phi / 2) * math.sin(delta_phi / 2) + math.cos(phi1) * math.cos(phi2) * math.sin(delta_lambda / 2) * math.sin(delta_lambda / 2)
+    c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
+    return R * c
 
 # returns degrees heading between two points in ENU degrees
 def get_bearing(lat1, lon1, lat2, lon2):
@@ -57,7 +76,7 @@ def add_yaws_to_route(route):
     for i in range(2, len(route)-1):
         if len(route[i]) == 3:
             continue
-        lat1, lon1 = route[ADD-1][0], route[i-1][1]
+        lat1, lon1 = route[i-1][0], route[i-1][1]
         lat2, lon2 = route[i+1][0], route[i+1][1]
         bearing = get_bearing(lat1, lon1, lat2, lon2)
         route[i].append(bearing)
@@ -81,9 +100,40 @@ class RaceNode(Node):
         self.compass_pub = self.create_publisher(Imu, '/car/compass', 10)
         self.cmd_vel_pub = self.create_publisher(Twist, '/cmd_vel', 10)
         self.cone_detection_sub = self.create_subscription(Detection2DArray, '/car/oakd/color/cone_detections', self.cone_detection_cb, qos_profile=qos_profile_sensor_data)
+        self.tf_buffer = tf2_ros.Buffer()
+        self.tf_listener = tf2_ros.TransformListener(self.tf_buffer, self)
+        self.cone_in_sight = False
+
 
         self.enabled = False
+
+    def wait_for_utm_frame(self):
+        # Wait for the utm frame to become available
+        while not self.tf_buffer.can_transform('utm', 'base_link', rclpy.time.Time()):
+            print('Waiting for utm frame...')
+            rclpy.spin_once(self, timeout_sec=0.1)
     
+    def lat_lon_to_frame(self, lat, lon, frame_id):
+        rclpy.spin_once(self)
+        geo_point = GeoPoint(latitude=lat, longitude=lon, altitude=0.0)
+        utm_point = fromLatLong(geo_point.latitude, geo_point.longitude)
+
+        try:
+            utm_point_stamped = PointStamped()
+            utm_point_stamped.header.stamp = self.get_clock().now().to_msg()
+            #utm_point_stamped.header.stamp = self.tf_buffer.get_latest_common_time('utm', frame_id)
+            utm_point_stamped.header.frame_id = 'utm'
+            utm_point_stamped.point = Point(x=utm_point.easting, y=utm_point.northing, z=0.0)
+
+            point = self.tf_buffer.transform(utm_point_stamped, frame_id)
+        except Exception as e:
+            print(e)
+            print(f"couldn't transform point to {frame_id} frame")
+            return None
+        return point
+
+
+
     def back_up(self, velocity, seconds):
         print("backing up")
         global cancel
@@ -181,6 +231,11 @@ def test_bearing():
     print(f"expect 0, actual {get_bearing(wp[0], wp[1], east[0], east[1])}")
     print(f"expect 180, actual {get_bearing(wp[0], wp[1], west[0], west[1])}")
 
+def test_great_circle_distance():
+    wp_start    =   [33.802174844465256, -118.123360897995988,-90 ]
+    wp_hall     =   [33.802165, -118.12336089799598]
+    print(f"expect 0, actual {great_circle_distance(wp_start[0], wp_start[1], wp_start[0], wp_start[1])}")
+    print(f"expect few meters, actual {great_circle_distance(wp_start[0], wp_start[1], wp_hall[0], wp_hall[1])}")
 
 def main():
     global cancel
@@ -189,6 +244,7 @@ def main():
     race_node = RaceNode()
     navigator = BasicNavigator("basic_navigator")
     navigator.waitUntilNav2Active(localizer='robot_localization')
+    race_node.wait_for_utm_frame()
 
     wp_start    =   [33.802174844465256, -118.123360897995988,-90 ]
 
@@ -198,8 +254,13 @@ def main():
         race_node.publish_gps(wp_start[0], wp_start[1])
         race_node.publish_compass_degrees(math.pi / 180. * wp_start[2])
         time.sleep(0.1)
-    
 
+    # test converting to frame
+    #p = race_node.lat_lon_to_frame(wp_start[0], wp_start[1], 'map')
+    #if p:
+    #    print(f"converted to map frame: {p.point.x}, {p.point.y}")
+    #else:
+    #    print("couldn't convert to map frame")    
     printed = False
     navigator.clearAllCostmaps()
     time.sleep(1)
@@ -242,6 +303,7 @@ def main():
         [-118.123251089604, 33.802076242790484],
     ]
 
+
     route_eldo = [eldo_mid, eldo_cone1]
 
     route = route_inside_house
@@ -265,8 +327,32 @@ def main():
     while not cancel and not navigator.isTaskComplete() and race_node.is_enabled():
         if race_node.cone_in_sight:
             print("cone in sight, cancelling waypoint navigation")
-            break
-        print(navigator.getFeedback())
+        #    break
+
+        # print out location of base_link in map frame
+
+        rclpy.spin_once(race_node);
+        # feedback = navigator.getFeedback()
+        # get distance to goal
+        p = race_node.lat_lon_to_frame(route[-1][0], route[-1][1], 'map')
+        transform = race_node.tf_buffer.lookup_transform('map', 'base_link', rclpy.time.Time())
+        p_car = transform.transform.translation
+
+        # clculate distance from car to goal
+        distance = math.sqrt((p.point.x - p_car.x)**2 + (p.point.y - p_car.y)**2)
+        print(f"distance to goal: {distance:.2f} meters")
+
+        # print(f"base_link in map frame: x: {p_car.x} y: {p_car.y} z: {p_car.z}")
+
+        # Apply the transform to the point
+        #p = tf2_geometry_msgs.do_transform_point(p, transform)
+        #print(f"x: {p.point.x} y: {p.point.y} z: {p.point.z} frame: {p.header.frame_id}")
+        #print(f"current waypoint: {feedback.current_waypoint} distance to goal: { math.sqrt(p.point.x**2 + p.point.y**2):.2f} meters")
+
+        # calculate distance to goal
+        
+
+
     print("waypoint navigation done")
     navigator.cancelTask()
 
