@@ -98,9 +98,9 @@ def main():
 
     # send fake gps point to nav2
     print("setting starting location")
-    for _ in range(5):
-        race_node.publish_gps(33.802208958398154, -118.12336015943343)
-        race_node.publish_compass_degrees(-90);
+ #   for _ in range(5):
+ #       race_node.publish_gps(33.802208958398154, -118.12336015943343)
+ #       race_node.publish_compass_degrees(-90);
     
 
     printed = False
@@ -115,12 +115,16 @@ def main():
     try:
         yaw = -90 * 3.14/180.;
 
+        eldo_start = latLonYaw2Geopose(33.822141, -118.0893215, -12*3.14/180.)
+        eldo_mid = latLonYaw2Geopose(33.8221759,-118.0891911,0.0)
+        eldo_cone1 = latLonYaw2Geopose(33.8220967, -118.0891856, -12*3.14/180.)
         wp_start    = latLonYaw2Geopose(33.802208958398154, -118.12336015943343, yaw)
         wp_hall     = latLonYaw2Geopose(33.802179596462175, -118.12335925382896, yaw)
         wp_hall_mid = latLonYaw2Geopose(33.802189596462175, -118.12335985382896, yaw)
         wp_couch_back = latLonYaw2Geopose(33.802170 ,       -118.123332, yaw)
         # wp = [wp_start, wp_hall, wp_couch_back]
-        wp = [wp_hall_mid, wp_hall ]
+        #wp = [wp_hall_mid, wp_hall ]
+        wp = [eldo_mid, eldo_cone1]
         print()
         print(wp[0])
         navigator.followGpsWaypoints(wp)
