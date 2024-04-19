@@ -9,9 +9,9 @@ show_status_bar: true
 show_capture_tools: true
 window_width: 1920
 window_height: 1198
-view_scale: 0.0496741273
-offset_x: 0
-offset_y: 0
+view_scale: 0.0573085323
+offset_x: -0.0993482545
+offset_y: 0.0496741273
 use_latest_transforms: true
 background: "#a0a0a4"
 image_transport: compressed
@@ -76,21 +76,17 @@ displays:
     config:
       visible: true
       collapsed: false
-      topic: /gps/filtered
+      topic: car/gps/filtered
       color: "#1a5fb4"
       draw_style: lines
       position_tolerance: 0
       buffer_size: 0
-  - type: mapviz_plugins/gps
+  - type: mapviz_plugins/plan_route
     name: new display
     config:
       visible: true
       collapsed: false
-      topic: gps/fix
-      color: "#ff7800"
-      draw_style: arrows
-      position_tolerance: 0
-      buffer_size: 0
-      show_laps: false
-      static_arrow_sizes: true
-      arrow_size: 118
+      route_topic: ""
+      color: "#00ff00"
+      service: ""
+      start_from_vehicle: false
