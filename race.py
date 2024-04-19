@@ -73,7 +73,7 @@ def add_yaws_to_route(route):
         route[-1].append(bearing)
 
     # other points use bearing from previous to next point
-    for i in range(2, len(route)-1):
+    for i in range(1, len(route)-1):
         if len(route[i]) == 3:
             continue
         lat1, lon1 = route[i-1][0], route[i-1][1]
@@ -103,9 +103,20 @@ class RaceNode(Node):
         self.tf_buffer = tf2_ros.Buffer()
         self.tf_listener = tf2_ros.TransformListener(self.tf_buffer, self)
         self.cone_in_sight = False
-
-
         self.enabled = False
+
+        self.navigator = BasicNavigator("basic_navigator")
+        self.navigator.waitUntilNav2Active(localizer='robot_localization')
+        self.wait_for_utm_frame()
+
+    def set_fake_location(self, wp):
+        # # send fake gps point to nav2
+        print("setting starting location")
+        for _ in range(5):
+            self.publish_gps(wp[0], wp[1])
+            self.publish_compass_degrees(math.pi / 180. * wp[2])
+            time.sleep(0.1)
+
 
     def wait_for_utm_frame(self):
         # Wait for the utm frame to become available
@@ -204,7 +215,80 @@ class RaceNode(Node):
             print(e)
             self.cone_in_sight = False
             print("error in cone detection callback")
+    
+    # route is an array of [lat, lon, yaw_degrees] waypoints
+    def follow_route_to_cone(self, route):
+        add_yaws_to_route(route)
+
+        # print route
+        print("route: ")
+        for wp in route:
+            print(wp)
+
+        route_geoposes = [latLonYaw2Geopose(wp[0], wp[1], math.pi / 180. * wp[2] ) for wp in route]
+
+        try:
+            self.navigator.followGpsWaypoints(route_geoposes)
+        except KeyboardInterrupt:
+            pass
+        print('navigating waypoints')
+        while not cancel and not self.navigator.isTaskComplete() and self.is_enabled():
+            rclpy.spin_once(self);
+            p = self.lat_lon_to_frame(route[-1][0], route[-1][1], 'map')
+            transform = self.tf_buffer.lookup_transform('map', 'base_link', rclpy.time.Time())
+            p_car = transform.transform.translation
+
+            # calculate distance from car to goal
+            distance = math.sqrt((p.point.x - p_car.x)**2 + (p.point.y - p_car.y)**2)
+            print(f"distance to goal: {distance:.2f} meters")        
+
+            if self.cone_in_sight and distance < 5.0:
+                print("cone in sight, cancelling waypoint navigation")
+                break
+
+
+        print("waypoint navigation done")
+        self.navigator.cancelTask()
+
+        if cancel: return
+
+        cone_follower = ActionClient(self, FollowCone, "follow_cone")
+        cone_follower.wait_for_server()
+        goal_msg = FollowCone.Goal()
+        send_goal_future = cone_follower.send_goal_async(goal_msg, self._feedbackCallback)
+        rclpy.spin_until_future_complete(self, send_goal_future)
+        goal_handle = send_goal_future.result()
+        printed = False
+        if not goal_handle.accepted:
+            print("Cone goal rejected")
+            return
+        result_future = goal_handle.get_result_async() 
+
+        try:
+            while not cancel and not result_future.result():
+                if not self.is_enabled():
+                    print("auto mode disabled, cancelling goal")
+                    cancel_future = goal_handle.cancel_goal_async()
+                    rclpy.spin_until_future_complete(self, cancel_future)
+                    print("goal cancelled")
+                    break
+
+                if not printed:
+                    print("waiting for follow cone action to complete")
+                    printed = True
+        except KeyboardInterrupt:
+            pass
         
+        # cancel goal if not complete
+        if not result_future.result():
+            print("cancelling goal")
+            cancel_future = goal_handle.cancel_goal_async()
+            rclpy.spin_until_future
+
+        print("follow cone complete")
+
+        
+
 
 
     def car_update_cb(self, msg: Update):
@@ -239,30 +323,21 @@ def test_great_circle_distance():
 
 def main():
     global cancel
+
     print("race code started")
     rclpy.init()
+
     race_node = RaceNode()
-    navigator = BasicNavigator("basic_navigator")
-    navigator.waitUntilNav2Active(localizer='robot_localization')
-    race_node.wait_for_utm_frame()
+    print("race node initialized")
 
     wp_start    =   [33.802174844465256, -118.123360897995988,-90 ]
+    race_node.set_fake_location(wp_start)
 
-    # # send fake gps point to nav2
-    print("setting starting location")
-    for _ in range(5):
-        race_node.publish_gps(wp_start[0], wp_start[1])
-        race_node.publish_compass_degrees(math.pi / 180. * wp_start[2])
-        time.sleep(0.1)
+    
 
-    # test converting to frame
-    #p = race_node.lat_lon_to_frame(wp_start[0], wp_start[1], 'map')
-    #if p:
-    #    print(f"converted to map frame: {p.point.x}, {p.point.y}")
-    #else:
-    #    print("couldn't convert to map frame")    
+
     printed = False
-    navigator.clearAllCostmaps()
+    race_node.navigator.clearAllCostmaps()
     time.sleep(1)
     try:
         while not cancel and not race_node.is_enabled():
@@ -277,7 +352,7 @@ def main():
         return
 
     print("auto mode enabled")
-    navigator.clearAllCostmaps()
+    race_node.navigator.clearAllCostmaps()
     
 
     # waypoints
@@ -293,96 +368,30 @@ def main():
     # front door
 
     route_inside_house = [wp_hall_mid, wp_hall];
+    route_back_to_desk = [wp_hall_mid, wp_start]
     route_through_front_door = [
-        [-118.12335692041168, 33.802147026711815],
-        [-118.12335630151807, 33.80211912648005],
-        [-118.12331916790136, 33.802124293189635],
-        [-118.12327893981654, 33.80212790988635],
-        [-118.12325975411457, 33.80212790988635],
-        [-118.12325418407208, 33.802111893086625],
-        [-118.12325294628485, 33.80209380960308],
-        [-118.123251089604, 33.802076242790484],
+        [33.802147026711815, -118.12335692041168],
+        [33.80211912648005, -118.12335630151807],
+        [33.802124293189635, -118.12331916790136],
+        [33.80212790988635, -118.12327893981654],
+        [33.80212790988635, -118.12325975411457],
+        [33.802111893086625, -118.12325418407208],
+        [33.80209380960308, -118.12325294628485],
+        [33.802076242790484, -118.123251089604],
     ]
 
 
     route_eldo = [eldo_mid, eldo_cone1]
 
-    route = route_inside_house
-
-    add_yaws_to_route(route)
-
-    # print route
-    print("route: ")
-    for wp in route:
-        print(wp)
-
-    route_geoposes = [latLonYaw2Geopose(wp[0], wp[1], math.pi / 180. * wp[2] ) for wp in route]
-
-
-
-    try:
-        navigator.followGpsWaypoints(route_geoposes)
-    except KeyboardInterrupt:
-        pass
-    print('navigating waypoints')
-    while not cancel and not navigator.isTaskComplete() and race_node.is_enabled():
-
-        rclpy.spin_once(race_node);
-        p = race_node.lat_lon_to_frame(route[-1][0], route[-1][1], 'map')
-        transform = race_node.tf_buffer.lookup_transform('map', 'base_link', rclpy.time.Time())
-        p_car = transform.transform.translation
-
-        # clculate distance from car to goal
-        distance = math.sqrt((p.point.x - p_car.x)**2 + (p.point.y - p_car.y)**2)
-        print(f"distance to goal: {distance:.2f} meters")        
-
-        if race_node.cone_in_sight and distance < 2.0:
-            print("cone in sight, cancelling waypoint navigation")
-            break
-
-
-    print("waypoint navigation done")
-    navigator.cancelTask()
-
-    if cancel: return
-
-    cone_follower = ActionClient(race_node, FollowCone, "follow_cone")
-    cone_follower.wait_for_server()
-    goal_msg = FollowCone.Goal()
-    send_goal_future = cone_follower.send_goal_async(goal_msg, race_node._feedbackCallback)
-    rclpy.spin_until_future_complete(race_node, send_goal_future)
-    goal_handle = send_goal_future.result()
-    printed = False
-    if not goal_handle.accepted:
-        print("Cone goal rejected")
-        return
-    result_future = goal_handle.get_result_async() 
-
-    try:
-        while not cancel and not result_future.result():
-            if not race_node.is_enabled():
-                print("auto mode disabled, cancelling goal")
-                cancel_future = goal_handle.cancel_goal_async()
-                rclpy.spin_until_future_complete(race_node, cancel_future)
-                print("goal cancelled")
-                break
-
-            if not printed:
-                print("waiting for follow cone action to complete")
-                printed = True
-    except KeyboardInterrupt:
-        pass
-    
-    # cancel goal if not complete
-    if not result_future.result():
-        print("cancelling goal")
-        cancel_future = goal_handle.cancel_goal_async()
-        rclpy.spin_until_future
-
-    print("follow cone complete")
+    race_node.follow_route_to_cone(route_through_front_door)
 
     if not cancel:
         race_node.back_up(velocity=0.5, seconds=3.0)
+    
+    if not cancel:
+        race_node.follow_route_to_cone(route_back_to_desk)
+    
+    print("done");
 
     rclpy.shutdown()
 
