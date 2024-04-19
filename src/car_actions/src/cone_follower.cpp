@@ -107,16 +107,16 @@ public:
 
       float distance = (cone_distance < 1 && scan_distance < 1) ? scan_distance : cone_distance;
 
-      float max_velocity = 1.5;
+      double max_velocity = 1.5;
       double max_accel;
       get_parameter<double>("accel", max_accel);
-      float min_velocity = 0.1;
-      float stop_distance = 0.15; // distance from front of car to cone to stop at
-      float distance_remaining = distance - stop_distance;
+      double min_velocity = 0.1;
+      double stop_distance = 0.15; // distance from front of car to cone to stop at
+      double distance_remaining = distance - stop_distance;
 
       // velocity to stop in time
       float velocity = distance_remaining > 0 ?
-        std::clamp(2 * max_acceleration * distance_remaining, min_velocity, max_velocity) 
+        std::clamp(2 * max_accel * distance_remaining, min_velocity, max_velocity) 
         : 0;
 
       RCLCPP_INFO(this->get_logger(), "detection degrees: %3.1f width_degrees: %3.1f distance: %3.2f vel: %3.2f", x_angle_degrees, x_width_degrees, distance, velocity);
@@ -124,7 +124,7 @@ public:
       geometry_msgs::msg::Twist cmd_vel_msg;
       cmd_vel_msg.linear.x = velocity;
       if(velocity > 0) {
-        float correction_distance = std::clamp(distance_remaining / 2, 0.5f, 2.0f); // distance to complete turn to currect angle
+        float correction_distance = std::clamp(distance_remaining / 2, 0.5, 2.0); // distance to complete turn to currect angle
         cmd_vel_msg.angular.z = x_angle_degrees * (M_PI / 180.0) *  cmd_vel_msg.linear.x / correction_distance;
       } else {
         cmd_vel_msg.angular.z = 0;
