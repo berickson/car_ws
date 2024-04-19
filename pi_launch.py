@@ -4,7 +4,7 @@ from launch import LaunchDescription
 from ament_index_python.packages import get_package_share_directory
 from launch.substitutions import LaunchConfiguration, EnvironmentVariable
 from launch_ros.actions import Node
-from launch.actions import IncludeLaunchDescription
+from launch.actions import IncludeLaunchDescription, ExecuteProcess
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 
 def generate_launch_description():
@@ -33,6 +33,12 @@ def generate_launch_description():
           ('fix', 'fix_raw'),
       ]
     )
+
+    # node that runs ./scan_filter.py
+    scan_filter = ExecuteProcess(
+        cmd = ["python3", "./scan_filter.py"],
+        name="scan_filter",
+        output="both")
 
     gps_fixer = Node(
         package="gps_fixer",
@@ -84,6 +90,10 @@ def generate_launch_description():
         PythonLaunchDescriptionSource('ekf_launch.py')
     )
 
+    nav = IncludeLaunchDescription(
+        PythonLaunchDescriptionSource('nav_launch.py')
+    )
+
 
     ld.add_action(micro_ros_agent)
     ld.add_action(lidar_launch)
@@ -95,5 +105,7 @@ def generate_launch_description():
     ld.add_action(car_action_server)
     ld.add_action(detection_visualizer)
     ld.add_action(ekf)
+    ld.add_action(scan_filter)
+    # ld.add_action(nav)
 
     return ld

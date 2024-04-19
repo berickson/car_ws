@@ -105,16 +105,11 @@ public:
       cone_distance -= 0.17; // distance from camera to front of car
       scan_distance -= 0.29; // distance from camera to front of car
 
-
-
       float distance = (cone_distance < 1 && scan_distance < 1) ? scan_distance : cone_distance;
-
-
 
       float max_velocity = 1.5;
       double max_accel;
       get_parameter<double>("accel", max_accel);
-      float max_acceleration = max_accel;//COME BACK TO THIS WHEN YOU GET RESPONSE
       float min_velocity = 0.1;
       float stop_distance = 0.15; // distance from front of car to cone to stop at
       float distance_remaining = distance - stop_distance;
@@ -171,9 +166,7 @@ public:
       param_desc.description = "Max acceleration";
       param_desc.type = rclcpp::ParameterType::PARAMETER_DOUBLE;
       this->declare_parameter("accel", 0.3, param_desc);
-
     }
-  
 };
 
 

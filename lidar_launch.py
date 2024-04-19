@@ -81,7 +81,8 @@ def generate_launch_description():
                          'angle_compensate': angle_compensate, 
                          'scan_mode': scan_mode}],
             remappings=[('start_motor', 'car/start_scan'),
-                        ('stop_motor', 'car/stop_scan')],
+                        ('stop_motor', 'car/stop_scan'),
+                        ('scan', 'scan_raw')],
             output='screen',
             arguments=['--ros-args', '--log-level', log_level]
         ),
