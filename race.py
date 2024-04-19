@@ -277,6 +277,7 @@ def main():
         return
 
     print("auto mode enabled")
+    navigator.clearAllCostmaps()
     
 
     # waypoints
@@ -325,32 +326,19 @@ def main():
         pass
     print('navigating waypoints')
     while not cancel and not navigator.isTaskComplete() and race_node.is_enabled():
-        if race_node.cone_in_sight:
-            print("cone in sight, cancelling waypoint navigation")
-        #    break
-
-        # print out location of base_link in map frame
 
         rclpy.spin_once(race_node);
-        # feedback = navigator.getFeedback()
-        # get distance to goal
         p = race_node.lat_lon_to_frame(route[-1][0], route[-1][1], 'map')
         transform = race_node.tf_buffer.lookup_transform('map', 'base_link', rclpy.time.Time())
         p_car = transform.transform.translation
 
         # clculate distance from car to goal
         distance = math.sqrt((p.point.x - p_car.x)**2 + (p.point.y - p_car.y)**2)
-        print(f"distance to goal: {distance:.2f} meters")
+        print(f"distance to goal: {distance:.2f} meters")        
 
-        # print(f"base_link in map frame: x: {p_car.x} y: {p_car.y} z: {p_car.z}")
-
-        # Apply the transform to the point
-        #p = tf2_geometry_msgs.do_transform_point(p, transform)
-        #print(f"x: {p.point.x} y: {p.point.y} z: {p.point.z} frame: {p.header.frame_id}")
-        #print(f"current waypoint: {feedback.current_waypoint} distance to goal: { math.sqrt(p.point.x**2 + p.point.y**2):.2f} meters")
-
-        # calculate distance to goal
-        
+        if race_node.cone_in_sight and distance < 2.0:
+            print("cone in sight, cancelling waypoint navigation")
+            break
 
 
     print("waypoint navigation done")
