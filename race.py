@@ -1,30 +1,33 @@
 #!/usr/bin/env python3
-import rclpy
-from rclpy.node import Node
-from std_msgs.msg import Header
-from rclpy.action import ActionClient
-from nav2_simple_commander.robot_navigator import BasicNavigator
-from geometry_msgs.msg import PointStamped, Quaternion, Twist
-from utils.gps_utils import latLonYaw2Geopose
-from car_msgs.msg import Update
-from car_msgs.action import FollowCone
-from rclpy.qos import qos_profile_sensor_data
-from sensor_msgs.msg import NavSatFix, Imu
-from vision_msgs.msg import Detection2DArray
-import time
+
+# Standard library imports
 import math
 import signal
-import sys
-# sudo apt install ros-iron-geodesy
-from geodesy import utm
-import tf2_ros
-import tf2_py as tf2
-from tf2_geometry_msgs import PointStamped
-import tf2_geometry_msgs
+import time
+
+# ROS related imports
+import rclpy
+from rclpy.action import ActionClient
+from rclpy.node import Node
+from rclpy.qos import qos_profile_sensor_data
+
+# ROS message imports
+from car_msgs.msg import Update
+from car_msgs.action import FollowCone
 from geographic_msgs.msg import GeoPoint
+from geometry_msgs.msg import Point, PointStamped, Quaternion, Twist
+from sensor_msgs.msg import Imu, NavSatFix
+from std_msgs.msg import Header
+from vision_msgs.msg import Detection2DArray
+
+# ROS tf and geodesy imports
+import tf2_ros
 from geodesy.utm import fromLatLong
-from geometry_msgs.msg import Point
-import math
+from tf2_geometry_msgs import PointStamped
+
+# Local module imports
+from nav2_simple_commander.robot_navigator import BasicNavigator
+from utils.gps_utils import latLonYaw2Geopose
 
 cancel = False
 
