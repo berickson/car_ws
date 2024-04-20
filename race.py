@@ -456,10 +456,14 @@ def main():
         [33.802076242790484, -118.123251089604],
     ]
 
+    route_bike_symbol = [
+        [37.32900311343151, -121.88735484778778 ],
+        [37.329078315121365, -121.88725672110606 ],]
+
 
     route_eldo = [eldo_mid, eldo_cone1]
 
-    race_node.follow_route_to_cone(route_through_front_door)
+    race_node.follow_route_to_cone(route_bike_symbol)
 
     if not cancel:
         race_node.back_up(velocity=0.5, seconds=3.0)
