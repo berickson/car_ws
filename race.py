@@ -112,13 +112,13 @@ class RaceNode(Node):
         self.navigator.waitUntilNav2Active(localizer='robot_localization')
         self.wait_for_utm_frame()
     
-    def circle_to_find_cone(self, timeout_seconds = 10.0):
+    def circle_to_find_cone(self, timeout_seconds = 20.0, speed = 1.5):
         print("circling to find cone")
         twist = Twist()
-        twist.linear.x = 0.5
-        twist.angular.z = 1.0
+        twist.linear.x = speed
+        twist.angular.z = 1.0 * speed / 1.5
         start_time = time.time()
-        while not self.cone_in_sight and time.time() - start_time < 10.0:
+        while not self.cone_in_sight and time.time() - start_time < timeout_seconds:
             self.cmd_vel_pub.publish(twist)
             rclpy.spin_once(self)
             time.sleep(0.01)
@@ -470,8 +470,6 @@ def main():
     ]
 
     route_race_direct = [
-        [37.3269418041309, -121.89123502571982 ],
-        [37.327005482090875, -121.89130812198876 ],
         [37.327067833426696, -121.8913562990751 ],
         [37.32713947113167, -121.8914061374403 ],
         [37.32717396335999, -121.89144434685359 ],
@@ -488,7 +486,7 @@ def main():
 
     race_node.follow_route_to_cone(route_race_direct)
     # race_node.follow_route_to_cone(route_back_bike_symbol)
-    race_node.back_up(10)
+    race_node.back_up(velocity: 2.0, seconds: 5.0)
     race_node.circle_to_find_cone()
     race_node.follow_cone()
 
