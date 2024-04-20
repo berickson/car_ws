@@ -111,6 +111,27 @@ class RaceNode(Node):
         self.navigator = BasicNavigator("basic_navigator")
         self.navigator.waitUntilNav2Active(localizer='robot_localization')
         self.wait_for_utm_frame()
+    
+    def circle_to_find_cone(self, timeout_seconds = 10.0):
+        print("circling to find cone")
+        twist = Twist()
+        twist.linear.x = 0.5
+        twist.angular.z = 1.0
+        start_time = time.time()
+        while not self.cone_in_sight and time.time() - start_time < 10.0:
+            self.cmd_vel_pub.publish(twist)
+            rclpy.spin_once(self)
+            time.sleep(0.01)
+
+        twist.linear.x = 0.0
+        twist.angular.z = 0.0
+        self.cmd_vel_pub.publish(twist)
+        if self.cone_in_sight:
+            print("cone found by circling") 
+            return True
+        else:
+            print("cone not found by circling")
+            return False
 
     def set_fake_location(self, wp):
         # # send fake gps point to nav2
@@ -219,6 +240,52 @@ class RaceNode(Node):
             self.cone_in_sight = False
             print("error in cone detection callback")
     
+    def follow_cone(self, timeout_seconds = 15.0):
+        start_time = time.time()
+
+        cone_follower = ActionClient(self, FollowCone, "follow_cone")
+        cone_follower.wait_for_server()
+        goal_msg = FollowCone.Goal()
+        send_goal_future = cone_follower.send_goal_async(goal_msg, self._feedbackCallback)
+        rclpy.spin_until_future_complete(self, send_goal_future)
+        goal_handle = send_goal_future.result()
+        printed = False
+        if not goal_handle.accepted:
+            print("Cone goal rejected")
+            return
+        result_future = goal_handle.get_result_async() 
+
+        timed_out = False
+        try:
+            while not timed_out and not cancel and not result_future.result():
+                if not self.is_enabled():
+                    print("auto mode disabled, cancelling goal")
+                    cancel_future = goal_handle.cancel_goal_async()
+                    rclpy.spin_until_future_complete(self, cancel_future)
+                    print("goal cancelled")
+                    break
+
+                if not printed:
+                    print("waiting for follow cone action to complete")
+                    printed = True
+
+                if time.time() - start_time > timeout_seconds:
+                    timed_out = True
+                    print("timed out waiting for follow cone action to complete")
+        except KeyboardInterrupt:
+            pass
+        
+        # cancel goal if not complete
+        if not result_future.result():
+            print("cancelling goal")
+            cancel_future = goal_handle.cancel_goal_async()
+            rclpy.spin_until_future_complete(self, cancel_future)
+            print("goal cancelled")
+
+        print("follow cone complete")
+
+        return not timed_out
+
     # route is an array of [lat, lon, yaw_degrees] waypoints
     def follow_route_to_cone(self, route):
         add_yaws_to_route(route)
@@ -255,42 +322,13 @@ class RaceNode(Node):
 
         if cancel: return
 
-        cone_follower = ActionClient(self, FollowCone, "follow_cone")
-        cone_follower.wait_for_server()
-        goal_msg = FollowCone.Goal()
-        send_goal_future = cone_follower.send_goal_async(goal_msg, self._feedbackCallback)
-        rclpy.spin_until_future_complete(self, send_goal_future)
-        goal_handle = send_goal_future.result()
-        printed = False
-        if not goal_handle.accepted:
-            print("Cone goal rejected")
-            return
-        result_future = goal_handle.get_result_async() 
-
-        try:
-            while not cancel and not result_future.result():
-                if not self.is_enabled():
-                    print("auto mode disabled, cancelling goal")
-                    cancel_future = goal_handle.cancel_goal_async()
-                    rclpy.spin_until_future_complete(self, cancel_future)
-                    print("goal cancelled")
-                    break
-
-                if not printed:
-                    print("waiting for follow cone action to complete")
-                    printed = True
-        except KeyboardInterrupt:
-            pass
-        
-        # cancel goal if not complete
-        if not result_future.result():
-            print("cancelling goal")
-            cancel_future = goal_handle.cancel_goal_async()
-            rclpy.spin_until_future
-
-        print("follow cone complete")
-
-        
+        if not self.cone_in_sight:
+            print("cone not in sight, circling to find cone")
+            if not self.circle_to_find_cone():
+                print("cone not found by circling, exiting")
+                return
+            print("cone found by circling")
+        self.follow_cone();
 
 
 
@@ -333,11 +371,28 @@ def main():
     race_node = RaceNode()
     print("race node initialized")
 
+    # uncomment to test out circling to find cone
+    # print("circling to find cone")
+    # if race_node.circle_to_find_cone():
+    #     print("circle to find cone succeeded")
+    #     if race_node.follow_cone():
+    #         print("follow cone succeeded")
+    #     else:
+    #         print("follow cone failed")
+    # else:
+    #     print("circle to find cone failed")
+    # return
+
+    # uncomment to test out follow cone
+    # if race_node.follow_cone():
+    #     print("follow cone succeeded")
+    # else:
+    #     print("follow cone failed")
+    # return
+
     wp_start    =   [33.802174844465256, -118.123360897995988,-90 ]
-    race_node.set_fake_location(wp_start)
-
-    
-
+    # uncomment to set fake location 
+    # race_node.set_fake_location(wp_start)
 
     printed = False
     race_node.navigator.clearAllCostmaps()
@@ -369,6 +424,24 @@ def main():
 
     # routes
     # front door
+    viola_ave_ne_to_sw = [
+        [37.329317561278145, -121.88691031341239 ],
+        [37.3291697212461, -121.88711584619394 ],
+        [37.32904693884661, -121.88728686201983 ],
+        [37.328955478487806, -121.88742492984255 ],
+        [37.32887529406364, -121.8875331875672 ],
+        [37.32880513269251, -121.887624186814 ],
+        [37.32873371843974, -121.88771675501333 ],
+        [37.32866856859511, -121.88780147844997 ],
+        [37.328587131289325, -121.88791444303223 ],
+        [37.328466854653094, -121.88808232095303 ],
+        [37.32836912988614, -121.88822195772828 ],
+        [37.32829270410687, -121.88832707754787 ],
+        [37.32829270410687, -121.88832707754787 ],
+        [37.32821627831174, -121.88841964574837 ],
+        [37.32810351896528, -121.88858124785905 ],
+        [37.328020828777866, -121.88869107453624 ],
+    ]
 
     route_inside_house = [wp_hall_mid, wp_hall];
     route_back_to_desk = [wp_hall_mid, wp_start]
