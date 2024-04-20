@@ -6,15 +6,24 @@ car:
     camera_roll_degrees: 1.0
     camera_x: 0.27
     camera_z: 0.135
-    compass_correction_degrees: 165.0
+    compass_correction_degrees: 179.0
     compass_error_degrees: 5.0
     compass_error_factor: 5.0 # makes navigation less sensitive to compass errors
     lidar_x: 0.140
     lidar_z: 0.175
-    mag_x_min: -500.0 # -650.0
-    mag_x_max: 950.0 # 900.0
-    mag_y_min: -302.0
-    mag_y_max: 1180.0
+
+    # eldo
+    # mag_x_min: -500.0 # -650.0
+    # mag_x_max: 950.0 # 900.0
+    # mag_y_min: -302.0
+    # mag_y_max: 1180.0
+
+    # san jose
+    mag_x_max: 893.0
+    mag_x_min: -408.0
+    mag_y_max: 1087.0
+    mag_y_min: -167.0
+
 
     curvature_to_str_lookup: [
       -85.1, 1844.0,
