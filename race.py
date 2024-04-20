@@ -482,6 +482,12 @@ def main():
         [37.32745653430741, -121.89185302144813 ],
     ]
 
+    route_bonus1 = [
+        [37.32691659827281, -121.8913396862894 ],
+        [37.32692588464197, -121.89137623442387 ],
+        [37.32693517101114, -121.89141278255833 ],
+    ]
+
     route_race_upper = [
         [37.32695639699673, -121.89139284720957 ],
         [37.32699221584922, -121.89148089498808 ],
@@ -499,6 +505,7 @@ def main():
 
     route_eldo = [eldo_mid, eldo_cone1]
 
+    race_node.follow_route_to_cone(route_bonus1)
     race_node.follow_route_to_cone(route_race_upper)
     # race_node.follow_route_to_cone(route_back_bike_symbol)
     race_node.back_up(velocity= 2.0, seconds=4.0)
