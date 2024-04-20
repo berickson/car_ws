@@ -488,6 +488,9 @@ def main():
 
     race_node.follow_route_to_cone(route_race_direct)
     # race_node.follow_route_to_cone(route_back_bike_symbol)
+    race_node.back_up(10)
+    race_node.circle_to_find_cone()
+    race_node.follow_cone()
 
     if not cancel:
         race_node.back_up(velocity=0.5, seconds=3.0)
