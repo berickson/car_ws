@@ -113,11 +113,11 @@ controller_server:
       max_acceleration: 1.0           # m/s^2
       max_deceleration: 1.0           # m/s^2
       max_lateral_acceleration: 1.0   # m/s^2
-      lookahead_distance: 1.0         # meters
+      lookahead_distance: 2.0         # meters
       min_turn_radius: 0.4            # meters
       transform_tolerance: 0.1        # maximum age of tf in seconds to be considered valid
-      steering_k_p: 20.0               # pid tuning for steering, distance from path
-      steering_k_d: 10.0               # pid tuning for steering, angle from path
+      steering_k_p: 10.0               # pid tuning for steering, distance from path
+      steering_k_d: 5.0               # pid tuning for steering, angle from path
 
 
 # GPS WPF CHANGE: Remove static layer
@@ -189,7 +189,7 @@ local_costmap:
         combination_method: 0 # overwrite with every valid observation
 
         scan:
-          topic: /scan
+          topic: /NOscan
           sensor_frame: laser_scanner_link
           max_obstacle_height: 2.0
           clearing: True
@@ -230,7 +230,7 @@ global_costmap:
         enabled: True
         observation_sources: scan
         scan:
-          topic: /scan
+          topic: /noscan
           max_obstacle_height: 2.0
           clearing: True
           marking: True
