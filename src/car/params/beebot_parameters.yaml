@@ -1,6 +1,6 @@
 car:
   ros__parameters:
-    robot_id: beebot
+    robot_id: "beebot"
     camera_pitch_degrees: 5.0
     compass_correction_degrees: 160.0
     compass_error_factor: 10.0 # makes navigation less sensitive to compass errors
