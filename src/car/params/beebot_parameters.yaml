@@ -2,13 +2,13 @@ car:
   ros__parameters:
     robot_id: beebot
     camera_pitch_degrees: 5.0
-    compass_correction_degrees: 165.0
-    compass_error_factor: 500.0 # makes navigation less sensitive to compass errors
+    compass_correction_degrees: 160.0
+    compass_error_factor: 10.0 # makes navigation less sensitive to compass errors
 
     front_left_meters_per_tick: 0.00261780104
     front_right_meters_per_tick: 0.0027700831
 
-    mag_x_min: -953.0
-    mag_x_max: 798.0
-    mag_y_min: -650.0
-    mag_y_max: 1090.0
+    mag_x_max: 427.0
+    mag_x_min: -1278.0
+    mag_y_max: 767.0
+    mag_y_min: -977.0
