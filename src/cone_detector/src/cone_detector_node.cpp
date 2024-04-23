@@ -12,6 +12,9 @@
 #include "vision_msgs/msg/detection2_d_array.hpp"
 #include <ament_index_cpp/get_package_share_directory.hpp>
 
+
+#include "geometry_msgs/msg/point_stamped.hpp"
+
 // Inludes common necessary includes for development using depthai library
 #include "depthai/device/DataQueue.hpp"
 #include "depthai/device/Device.hpp"
@@ -78,9 +81,26 @@ dai::Pipeline createPipeline(bool syncNN, std::string nnPath) {
     return pipeline;
 }
 
+    void callback(std::shared_ptr<dai::ImgDetections> det) {
+        // if(det->detections.size() > 0) {
+        //     geometry_msgs::msg::PointStamped cone_location;
+        //     cone_location.header.stamp = node->now();
+        //     cone_location.header.frame_id = "oak_rgb_camera_optical_frame";
+        //     cone_location.point.x = det->detections[0].bbox.center.x;
+        //     cone_location.point.y = det->detections[0].bbox.center.y;
+        //     cone_location.point.z = 0;
+        //     cone_location_publisher->publish(cone_location);
+        // }
+    }
+
+
 int main(int argc, char** argv) {
     rclcpp::init(argc, argv);
     auto node = rclcpp::Node::make_shared("cone_detector_node");
+
+    // create a PointStamped publisher for cone location
+    rclcpp::Publisher<geometry_msgs::msg::PointStamped>::SharedPtr cone_location_publisher = node->create_publisher<geometry_msgs::msg::PointStamped>("cone_location", 10);
+
 
     std::string tfPrefix, resourceBaseFolder, nnPath;
     std::string cameraParamUri = "package://cone_detector/params/camera";
@@ -148,8 +168,57 @@ int main(int argc, char** argv) {
         std::string("color/cone_detections"),
         std::bind(&dai::rosBridge::ImgDetectionConverter::toRosMsg, &detConverter, std::placeholders::_1, std::placeholders::_2),
         queueDepth);
+    
+
+    nNetDataQueue.get()->addCallback([&](std::shared_ptr<dai::ADatatype> data) {
+        auto detections = std::dynamic_pointer_cast<dai::ImgDetections>(data);
+        geometry_msgs::msg::PointStamped cone_location;
+        cone_location.header.stamp = node->now();
+        cone_location.header.frame_id = "oak_rgb_camera_optical_frame";
+        auto & d = detections.get()->detections[0];
+
+        if(detections.get()->detections.size() > 0) {
+            float x_fov_degrees = 69;
+            float y_fov_degrees = 54;
+
+            float x_resolution = 1.0; // x and y go between 0 and 1
+            float y_resolution = 1.0;
+
+            float x_width = d.xmax-d.xmin;
+            float x_center = (d.xmax+d.xmin)/2.0;
+            float x_angle_degrees = -1 * (x_resolution/2.0 - (x_center) )/x_resolution * x_fov_degrees;
+            float x_width_degrees = (d.xmax-d.xmin) * x_fov_degrees / x_resolution;
+            float width_radians = x_width_degrees * (M_PI / 180.0); 
+            float cone_width = 0.30; // meters, width of the cone about camera height up
+            float cone_distance_width = (cone_width/2.0) / sin(width_radians/2.0);
+
+            // do the same thing for cone height
+            float y_height = d.ymax-d.ymin;
+            float y_center = (d.ymax+d.ymin)/2.0;
+            float y_angle_degrees = -1 * (y_resolution/2.0 - (y_center) )/y_resolution * y_fov_degrees;
+            float y_height_degrees = (d.ymax-d.ymin) * y_fov_degrees / y_resolution;
+            float height_radians = y_height_degrees * (M_PI / 180.0);
+            float cone_height = 0.6; // bigger than natural height of 0.45 because image is stretched to square?
+            float cone_distance_height = (cone_height/2.0) / sin(height_radians/2.0);
+
+            float cone_distance = std::min(cone_distance_width, cone_distance_height);
+
+
+            cone_location.point.x = cone_distance * sin(x_angle_degrees * M_PI / 180.0);
+            cone_location.point.y = cone_distance * sin(y_angle_degrees * M_PI / 180.0);
+            cone_location.point.z = cone_distance; // * cos(x_angle_degrees * M_PI / 180.0) * cos(y_angle_degrees * M_PI / 180.0);
+
+        } else {
+            cone_location.point.x = 0;
+            cone_location.point.y = 0;
+            cone_location.point.z = 0;
+        }
+        cone_location_publisher->publish(cone_location);
+    });
 
     detectionPublish.addPublisherCallback();
+
+
     rgbPublish.addPublisherCallback();  // addPublisherCallback works only when the dataqueue is non blocking.
 
     rclcpp::spin(node);
