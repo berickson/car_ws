@@ -914,6 +914,11 @@ void Car::car_update_topic_callback(const car_msgs::msg::Update::SharedPtr d){
 
     if(powertrain_on && cmd_vel_message && (now()-cmd_vel_receive_time) < 500ms ) {
 
+      // by default, we use motor speed. If there is no motor odometry connected, we use fr wheel speed.
+      bool use_wheel_speed = motor.ticks == 0 &&   (fr.ticks != 0 && fr.ticks != 0);
+
+      const car_msgs::msg::Speedometer & speedometer = use_wheel_speed ? fr : motor;
+
       double theta_per_second = cmd_vel_message->angular.z;
       double meters_per_second = cmd_vel_message->linear.x;
       Angle theta_per_meter = Angle::radians( meters_per_second == 0.0 ? 0.0 : theta_per_second / meters_per_second );
@@ -928,12 +933,12 @@ void Car::car_update_topic_callback(const car_msgs::msg::Update::SharedPtr d){
       double velocity_k_p, velocity_k_a;
       get_parameter("velocity_k_p", velocity_k_p);
       get_parameter("velocity_k_a", velocity_k_a);
-      double v_error = meters_per_second - motor.v_smooth;
-      double a_error = -motor.a_smooth;
+      double v_error = meters_per_second - speedometer.v_smooth;
+      double a_error = -speedometer.a_smooth;
       esc_us_float += velocity_k_p * v_error + velocity_k_a * a_error ;
 
       // handle stopped case
-      if(fabs(meters_per_second)<0.02 && fabs(motor.v_smooth)<0.02) {
+      if(fabs(meters_per_second)<0.02 && fabs(speedometer.v_smooth)<0.02) {
         esc_us_float = 1500;
         str_us_float = 1500;
       }
