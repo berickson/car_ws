@@ -41,6 +41,7 @@ find_package(car_msgs REQUIRED)
 find_package(behaviortree_cpp REQUIRED)
 find_package(nav2_msgs REQUIRED)
 find_package(nav2_behavior_tree REQUIRED)
+find_package(visualization_msgs REQUIRED)
 
 
 set(dependencies
@@ -53,6 +54,7 @@ set(dependencies
   stereo_msgs
   std_msgs
   vision_msgs
+  visualization_msgs
 )
 
 include_directories(

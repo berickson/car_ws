@@ -11,6 +11,8 @@
 #include "sensor_msgs/msg/image.hpp"
 #include "vision_msgs/msg/detection2_d_array.hpp"
 #include <ament_index_cpp/get_package_share_directory.hpp>
+#include "visualization_msgs/msg/marker.hpp"
+#include "visualization_msgs/msg/marker_array.hpp"
 
 
 #include "geometry_msgs/msg/point_stamped.hpp"
@@ -89,6 +91,8 @@ int main(int argc, char** argv) {
     // create a PointStamped publisher for cone location
     rclcpp::Publisher<geometry_msgs::msg::PointStamped>::SharedPtr cone_location_publisher = node->create_publisher<geometry_msgs::msg::PointStamped>("color/cone_location", 10);
     rclcpp::Publisher<geometry_msgs::msg::PointStamped>::SharedPtr cone_location_publisher2 = node->create_publisher<geometry_msgs::msg::PointStamped>("color/cone_location2", 10);
+    rclcpp::Publisher<visualization_msgs::msg::Marker>::SharedPtr marker_publisher = node->create_publisher<visualization_msgs::msg::Marker>("color/cone_markers", 10);
+    rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr marker_array_publisher = node->create_publisher<visualization_msgs::msg::MarkerArray>("color/cone_marker_array", 10);
 
 
     std::string tfPrefix, resourceBaseFolder, nnPath;
@@ -165,55 +169,106 @@ int main(int argc, char** argv) {
 
     nNetDataQueue.get()->addCallback([&](std::shared_ptr<dai::ADatatype> data) {
         auto detections = std::dynamic_pointer_cast<dai::ImgDetections>(data);
-        geometry_msgs::msg::PointStamped cone_location;
-        cone_location.header.stamp = node->now();
-        cone_location.header.frame_id = "oak_rgb_camera_optical_frame";
 
-        for(int i=0; i < 2; ++ i) {
-            if (detections.get()->detections.size() > i) {
-                auto & d = detections.get()->detections[i];
-                float x_fov = 69 * M_PI / 180.0;
-                float y_fov = 54 * M_PI / 180.0;
+        visualization_msgs::msg::MarkerArray marker_array;
+        //marker_array.markers.resize(detections.get()->detections.size());
 
-                // x and y readings go betwee 0 and 1
-                // +x is right, +y is down
+        visualization_msgs::msg::Marker marker;
+        marker.header.frame_id = "oak_rgb_camera_optical_frame";
+        marker.header.stamp = node->now();
+        marker.ns = "cone_markers";
 
-                // calculations using width
-                float x_width = d.xmax-d.xmin;
-                float x_center = (d.xmax+d.xmin)/2.0;
-                float x_angle = (x_center - 0.5) * x_fov;
-                float width_radians = (d.xmax-d.xmin) * x_fov;
-                float cone_width = 0.30;
-                float cone_distance_width = (cone_width/2.0) / sin(width_radians/2.0);
-
-                // calculations using height
-                float y_height = d.ymax-d.ymin;
-                float y_center = (d.ymax+d.ymin)/2.0;
-                float y_angle = (y_center - 0.5) * y_fov;
-                float height_radians = (d.ymax-d.ymin) * y_fov;
-                float cone_height = 0.6; // bigger than natural height of 0.45 because image is stretched to square?
-                float cone_distance_height = (cone_height/2.0) / sin(height_radians/2.0);
-
-                // take the smaller of the two distances, since clipping can make it seem further away
-                float cone_distance = std::min(cone_distance_width, cone_distance_height);
+        marker.action = visualization_msgs::msg::Marker::DELETEALL;
+        marker_array.markers.push_back(marker);
 
 
-                cone_location.point.x = cone_distance * sin(x_angle);
-                cone_location.point.y = cone_distance * sin(y_angle);
-                cone_location.point.z = cone_distance;
+        for(int i=0; i < detections.get()->detections.size(); ++i) {
+            auto frame_id = "oak_rgb_camera_optical_frame";
+            auto stamp = node->now();
 
-            } else {
-                cone_location.point.x = 0;
-                cone_location.point.x = 0;
-                cone_location.point.y = 0;
-                cone_location.point.z = 0;
+
+            geometry_msgs::msg::PointStamped cone_location;
+            cone_location.header.stamp = node->now();
+            cone_location.header.frame_id = frame_id;
+
+            auto & d = detections.get()->detections[i];
+
+            // FOV numbers from here:
+            //    https://docs.luxonis.com/projects/hardware/en/latest/pages/DM9095/
+            float x_fov = 1.1 * 69 * M_PI / 180.0;
+            float y_fov = 0.7 * 54 * M_PI / 180.0;
+
+            // x and y readings go between 0 and 1
+            // +x is right, +y is down
+
+            // calculations using width
+            float x_width = d.xmax-d.xmin;
+            float x_center = (d.xmax+d.xmin)/2.0;
+            float x_angle = (x_center - 0.5) * x_fov;
+            float width_radians = (d.xmax-d.xmin) * x_fov;
+            float cone_width = 0.38;
+            float cone_distance_by_width = (cone_width/2.0) / sin(width_radians/2.0);
+
+            // calculations using height
+            float y_height = d.ymax-d.ymin;
+            float y_center = (d.ymax+d.ymin)/2.0;
+            float y_angle = (y_center - 0.5) * y_fov;
+            float height_radians = (d.ymax-d.ymin) * y_fov;
+            float cone_height = 0.45; // bigger than natural height of 0.45 because image is stretched to square?
+            float cone_distance_by_height = (cone_height/2.0) / sin(height_radians/2.0);
+
+            // take the smaller of the two distances, since clipping can make it seem further away
+            float cone_distance = std::min(cone_distance_by_width, cone_distance_by_height);
+
+            if(i == 0) {
+                // log distance by height and width
+                RCLCPP_INFO(node->get_logger(), "Distance by width: %f", cone_distance_by_width);
+                RCLCPP_INFO(node->get_logger(), "Distance by height: %f", cone_distance_by_height);
             }
-            if(i==0) {
-                cone_location_publisher->publish(cone_location);
-            } else {
-                cone_location_publisher2->publish(cone_location);
-            }
+
+
+
+            auto x = cone_distance * sin(x_angle);
+            auto y = cone_distance * sin(y_angle);
+            auto z = cone_distance;
+
+
+
+            cone_location.point.x = x;
+            cone_location.point.y = y;
+            cone_location.point.z = z;
+
+            visualization_msgs::msg::Marker marker;
+
+
+            marker.header.stamp = stamp;
+            marker.header.frame_id = frame_id;
+            marker.ns = "cone_markers";
+            marker.id = i;
+
+            marker.type = visualization_msgs::msg::Marker::CYLINDER;
+            marker.action = visualization_msgs::msg::Marker::MODIFY;
+            marker.pose.position.x = x;
+            marker.pose.position.y = y;
+            marker.pose.position.z = z;
+            marker.pose.orientation.x = 0.707;
+            marker.pose.orientation.y = 0;
+            marker.pose.orientation.z = 0;
+            marker.pose.orientation.w = 0.707;
+            marker.scale.x = 0.3;
+            marker.scale.y = 0.3;
+            marker.scale.z = 0.45;
+            // bright orange cone coloer
+            marker.color.r = 1.0;
+            marker.color.g = 0.5;
+            marker.color.b = 0.0;
+            marker.color.a = 0.5;
+            // marker.lifetime = rclcpp::Duration::from_seconds(0.5);
+            marker_array.markers.push_back(marker);
+
+
         }
+        marker_array_publisher->publish(marker_array);
     });
 
     detectionPublish.addPublisherCallback();
