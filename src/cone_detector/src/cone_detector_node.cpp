@@ -8,7 +8,9 @@
 #include "depthai_bridge/ImgDetectionConverter.hpp"
 #include "rclcpp/executors.hpp"
 #include "rclcpp/node.hpp"
+#include "rclcpp/node_options.hpp"
 #include "sensor_msgs/msg/image.hpp"
+#include "sensor_msgs/msg/laser_scan.hpp"
 #include "vision_msgs/msg/detection2_d_array.hpp"
 #include <ament_index_cpp/get_package_share_directory.hpp>
 #include "visualization_msgs/msg/marker.hpp"
@@ -30,6 +32,8 @@ const int previewWidth = 320;
 const int previewHeight = 180;
 const int nnWidth = 640;
 const int nnHeight = 640;
+
+
 
 
 dai::Pipeline createPipeline(bool syncNN, std::string nnPath) {
@@ -83,10 +87,20 @@ dai::Pipeline createPipeline(bool syncNN, std::string nnPath) {
     return pipeline;
 }
 
+class ConeDetectorNode : public rclcpp::Node {
+    public:
+    ConeDetectorNode() : Node("cone_detector_node", rclcpp::NodeOptions().enable_logger_service(true)) {
+        RCLCPP_INFO(this->get_logger(), "Cone Detector Node has started");
+    }
+};
+
 
 int main(int argc, char** argv) {
     rclcpp::init(argc, argv);
-    auto node = rclcpp::Node::make_shared("cone_detector_node");
+    auto node = std::make_shared<ConeDetectorNode>();
+
+    rclcpp::Subscription<sensor_msgs::msg::LaserScan>::SharedPtr scan_subscription_;
+
 
     // create a PointStamped publisher for cone location
     rclcpp::Publisher<geometry_msgs::msg::PointStamped>::SharedPtr cone_location_publisher = node->create_publisher<geometry_msgs::msg::PointStamped>("color/cone_location", 10);
@@ -111,6 +125,14 @@ int main(int argc, char** argv) {
     node->get_parameter("camera_param_uri", cameraParamUri);
     node->get_parameter("sync_nn", syncNN);
     node->get_parameter("resourceBaseFolder", resourceBaseFolder);
+
+    sensor_msgs::msg::LaserScan::SharedPtr scan_msg;
+
+    // subscribe to scan topic
+    scan_subscription_ = node->create_subscription<sensor_msgs::msg::LaserScan>("/scan", 1, [node,&scan_msg](const sensor_msgs::msg::LaserScan::SharedPtr msg) {
+        scan_msg = msg;
+    });
+
     resourceBaseFolder = ament_index_cpp::get_package_share_directory("cone_detector");
     resourceBaseFolder = resourceBaseFolder + "/resources";
 
@@ -217,13 +239,40 @@ int main(int argc, char** argv) {
             float cone_height = 0.45; // bigger than natural height of 0.45 because image is stretched to square?
             float cone_distance_by_height = (cone_height/2.0) / sin(height_radians/2.0);
 
-            // take the smaller of the two distances, since clipping can make it seem further away
-            float cone_distance = std::min(cone_distance_by_width, cone_distance_by_height);
+
+            // calculate distance using scan
+            float scan_distance = std::numeric_limits<float>::infinity();
+            int min_scan_index = -1;
+            if(scan_msg != nullptr) {
+                // we'll just look at the center of the scan
+                int center_count = 20;
+                for(int i = scan_msg->ranges.size() - center_count; i < scan_msg->ranges.size(); i++) {
+                    if(scan_msg->ranges[i] < scan_distance) {
+                    scan_distance = scan_msg->ranges[i];
+                    min_scan_index = i;
+                    }
+                }
+                for(int i = 0; i < center_count; i++) {
+                    if(scan_msg->ranges[i] < scan_distance) {
+                    scan_distance = scan_msg->ranges[i];
+                    min_scan_index = i;
+                    }
+                }
+            }
+
+
+            // take the smaller of the two visual distances, since clipping can make it seem further away
+            float visual_cone_distance = std::min(cone_distance_by_width, cone_distance_by_height);
+
+            // if cone is close and scan is close, use scan distance
+            float cone_distance = (visual_cone_distance < 1 && scan_distance < 1) ? scan_distance : visual_cone_distance;
+
 
             if(i == 0) {
                 // log distance by height and width
-                RCLCPP_INFO(node->get_logger(), "Distance by width: %f", cone_distance_by_width);
-                RCLCPP_INFO(node->get_logger(), "Distance by height: %f", cone_distance_by_height);
+                RCLCPP_DEBUG(node->get_logger(), "Distance by scan: %f", scan_distance);
+                RCLCPP_DEBUG(node->get_logger(), "Distance by width: %f", cone_distance_by_width);
+                RCLCPP_DEBUG(node->get_logger(), "Distance by height: %f", cone_distance_by_height);
             }
 
 
