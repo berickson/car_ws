@@ -29,15 +29,6 @@ from tf2_geometry_msgs import PointStamped
 from nav2_simple_commander.robot_navigator import BasicNavigator
 from utils.gps_utils import latLonYaw2Geopose
 
-cancel = False
-
-def signal_handler(sig, frame):
-    global cancel
-    cancel = True
-    print('Ctrl-C detected, setting cancel to True')
-
-# Set the signal handler
-signal.signal(signal.SIGINT, signal_handler)
 
 def great_circle_distance(lat1, lon1, lat2, lon2):
     R = 6371e3
@@ -113,19 +104,20 @@ class RaceNode(Node):
         self.wait_for_utm_frame()
     
     def circle_to_find_cone(self, timeout_seconds = 20.0, speed = 1.5):
-        print("circling to find cone")
-        twist = Twist()
-        twist.linear.x = speed
-        twist.angular.z = 1.0 * speed / 1.5
-        start_time = time.time()
-        while not self.cone_in_sight and time.time() - start_time < timeout_seconds:
+        try:
+            print("circling to find cone")
+            twist = Twist()
+            twist.linear.x = speed
+            twist.angular.z = 1.0 * speed / 1.5
+            start_time = time.time()
+            while not self.cone_in_sight and time.time() - start_time < timeout_seconds:
+                self.cmd_vel_pub.publish(twist)
+                rclpy.spin_once(self)
+                time.sleep(0.01)
+        finally:
+            twist.linear.x = 0.0
+            twist.angular.z = 0.0
             self.cmd_vel_pub.publish(twist)
-            rclpy.spin_once(self)
-            time.sleep(0.01)
-
-        twist.linear.x = 0.0
-        twist.angular.z = 0.0
-        self.cmd_vel_pub.publish(twist)
         if self.cone_in_sight:
             print("cone found by circling") 
             return True
@@ -171,23 +163,19 @@ class RaceNode(Node):
 
     def back_up(self, velocity, seconds):
         print("backing up")
-        global cancel
-        if cancel: return
-
-        twist = Twist()
-        twist.linear.x = -velocity
-        twist.angular.z = 0.0
-        waited = 0.0
-        while waited < seconds:
-            if cancel: break
+        try:
+            twist = Twist()
+            twist.linear.x = -velocity
+            twist.angular.z = 0.0
+            waited = 0.0
+            while waited < seconds:
+                self.cmd_vel_pub.publish(twist)
+                #rclpy.spin_once(self)
+                time.sleep(0.1)
+                waited += 0.1
+        finally:
+            twist.linear.x = 0.0
             self.cmd_vel_pub.publish(twist)
-            #rclpy.spin_once(self)
-            time.sleep(0.1)
-            waited += 0.1
-        twist.linear.x = 0.0
-        self.cmd_vel_pub.publish(twist)
-        #rclpy.spin_once(self)
-        
 
     def publish_gps(self, lat, lon):
         msg = NavSatFix()
@@ -257,7 +245,7 @@ class RaceNode(Node):
 
         timed_out = False
         try:
-            while not timed_out and not cancel and not result_future.result():
+            while not timed_out and not result_future.result():
                 if not self.is_enabled():
                     print("auto mode disabled, cancelling goal")
                     cancel_future = goal_handle.cancel_goal_async()
@@ -272,15 +260,12 @@ class RaceNode(Node):
                 if time.time() - start_time > timeout_seconds:
                     timed_out = True
                     print("timed out waiting for follow cone action to complete")
-        except KeyboardInterrupt:
-            pass
-        
-        # cancel goal if not complete
-        if not result_future.result():
-            print("cancelling goal")
-            cancel_future = goal_handle.cancel_goal_async()
-            rclpy.spin_until_future_complete(self, cancel_future)
-            print("goal cancelled")
+        finally:
+            if not result_future.result():
+                print("cancelling goal")
+                cancel_future = goal_handle.cancel_goal_async()
+                rclpy.spin_until_future_complete(self, cancel_future)
+                print("goal cancelled")
 
         print("follow cone complete")
 
@@ -299,28 +284,25 @@ class RaceNode(Node):
 
         try:
             self.navigator.followGpsWaypoints(route_geoposes)
-        except KeyboardInterrupt:
-            pass
-        print('navigating waypoints')
-        while not cancel and not self.navigator.isTaskComplete() and self.is_enabled():
-            rclpy.spin_once(self);
-            p = self.lat_lon_to_frame(route[-1][0], route[-1][1], 'map')
-            transform = self.tf_buffer.lookup_transform('map', 'base_link', rclpy.time.Time())
-            p_car = transform.transform.translation
+            print('navigating waypoints')
+            while not self.navigator.isTaskComplete() and self.is_enabled():
+                rclpy.spin_once(self);
+                p = self.lat_lon_to_frame(route[-1][0], route[-1][1], 'map')
+                transform = self.tf_buffer.lookup_transform('map', 'base_link', rclpy.time.Time())
+                p_car = transform.transform.translation
 
-            # calculate distance from car to goal
-            distance = math.sqrt((p.point.x - p_car.x)**2 + (p.point.y - p_car.y)**2)
-            print(f"distance to goal: {distance:.2f} meters")        
+                # calculate distance from car to goal
+                distance = math.sqrt((p.point.x - p_car.x)**2 + (p.point.y - p_car.y)**2)
+                print(f"distance to goal: {distance:.2f} meters")        
 
-            if self.cone_in_sight and distance < 5.0:
-                print("cone in sight, cancelling waypoint navigation")
-                break
+                if self.cone_in_sight and distance < 5.0:
+                    print("cone in sight, cancelling waypoint navigation")
+                    break
 
+        finally:
+            print("waypoint navigation done")
+            self.navigator.cancelTask()
 
-        print("waypoint navigation done")
-        self.navigator.cancelTask()
-
-        if cancel: return
 
         if not self.cone_in_sight:
             print("cone not in sight, circling to find cone")
@@ -363,7 +345,6 @@ def test_great_circle_distance():
     print(f"expect few meters, actual {great_circle_distance(wp_start[0], wp_start[1], wp_hall[0], wp_hall[1])}")
 
 def main():
-    global cancel
 
     print("race code started")
     rclpy.init()
@@ -397,17 +378,10 @@ def main():
     printed = False
     race_node.navigator.clearAllCostmaps()
     time.sleep(1)
-    try:
-        while not cancel and not race_node.is_enabled():
-            if not printed:
-                print("waiting for auto mode")
-                printed = True
-    except KeyboardInterrupt:
-        pass
-    
-    if cancel: 
-        print("cancelling")
-        return
+    while not race_node.is_enabled():
+        if not printed:
+            print("waiting for auto mode")
+            printed = True
 
     print("auto mode enabled")
     race_node.navigator.clearAllCostmaps()
@@ -503,6 +477,9 @@ def main():
         [37.32745122781182, -121.89191448876518 ],
     ]
 
+    race_node.follow_cone();
+    return
+
     route_eldo = [eldo_mid, eldo_cone1]
 
     race_node.follow_route_to_cone(route_bonus1)
@@ -512,11 +489,8 @@ def main():
     race_node.circle_to_find_cone()
     race_node.follow_cone()
 
-    if not cancel:
-        race_node.back_up(velocity=0.5, seconds=3.0)
-    
-    if not cancel:
-        race_node.follow_route_to_cone(route_back_to_desk)
+    race_node.back_up(velocity=0.5, seconds=3.0)
+    race_node.follow_route_to_cone(route_back_to_desk)
     
     print("done");
 
