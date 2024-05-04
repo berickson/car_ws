@@ -44,4 +44,4 @@ car:
 gps_fixer:
   ros__parameters:
     min_std: 2.0      # minimum GPS standard deviation to report
-    error_factor: 1.0 # multiplier for reported errors, higher numbes makes navigation less sensitive to GPS errors
+    error_factor: 1.0 # multiplier for reported errors, higher numbers make navigation less sensitive to GPS errors

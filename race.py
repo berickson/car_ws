@@ -99,6 +99,7 @@ class RaceNode(Node):
         self.cone_in_sight = False
         self.enabled = False
 
+    def prepare_nav(self):
         self.navigator = BasicNavigator("basic_navigator")
         self.navigator.waitUntilNav2Active(localizer='robot_localization')
         self.wait_for_utm_frame()
@@ -352,6 +353,15 @@ def main():
     race_node = RaceNode()
     print("race node initialized")
 
+    printed = False
+    while not race_node.is_enabled():
+        if not printed:
+            print("waiting for auto mode")
+            printed = True
+
+    race_node.follow_cone();
+    return
+
     # uncomment to test out circling to find cone
     # print("circling to find cone")
     # if race_node.circle_to_find_cone():
@@ -375,7 +385,6 @@ def main():
     # uncomment to set fake location 
     # race_node.set_fake_location(wp_start)
 
-    printed = False
     race_node.navigator.clearAllCostmaps()
     time.sleep(1)
     while not race_node.is_enabled():

@@ -215,7 +215,7 @@ int main(int argc, char** argv) {
 
             auto & d = detections.get()->detections[i];
 
-            // FOV numbers from here:
+            // FOV numbers from here, then adjusted:
             //    https://docs.luxonis.com/projects/hardware/en/latest/pages/DM9095/
             float x_fov = 1.1 * 69 * M_PI / 180.0;
             float y_fov = 0.7 * 54 * M_PI / 180.0;

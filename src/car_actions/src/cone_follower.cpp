@@ -13,7 +13,7 @@
 using namespace std::placeholders;
 
 
-float x_fov_degrees = 69;
+float x_fov_degrees = 1.1 * 69;
 int x_resolution = 320;
 
 class cone_follower_node : public rclcpp::Node {
@@ -75,7 +75,7 @@ public:
       float x_angle_degrees = (x_resolution/2.0 - detection.bbox.center.position.x)/x_resolution * x_fov_degrees;
       float x_width_degrees = detection.bbox.size_x * x_fov_degrees / x_resolution;
       float width_radians = x_width_degrees * (M_PI / 180.0); 
-      float cone_width = 0.20; // meters, width of the cone about camera height up
+      float cone_width = 0.38; // meters, width of the cone
       float cone_distance = (cone_width/2.0) / sin(width_radians/2.0);
 
       // find scan line in center of cone and print distance
@@ -107,16 +107,19 @@ public:
 
       float distance = (cone_distance < 1 && scan_distance < 1) ? scan_distance : cone_distance;
 
-      double max_velocity = 1.5;
+      double max_velocity;
+      get_parameter<double>("max_velocity", max_velocity);
       double max_accel;
       get_parameter<double>("accel", max_accel);
-      double min_velocity = 0.1;
-      double stop_distance = 0.15; // distance from front of car to cone to stop at
+      double min_velocity;
+      get_parameter<double>("min_velocity", min_velocity);
+      double stop_distance; // distance from front of car to cone to stop at
+      get_parameter<double>("goal_distance", stop_distance);
       double distance_remaining = distance - stop_distance;
 
       // velocity to stop in time
       float velocity = distance_remaining > 0 ?
-        std::clamp(2 * max_accel * distance_remaining, min_velocity, max_velocity) 
+        std::clamp(sqrt(2 * max_accel * distance_remaining), min_velocity, max_velocity) 
         : 0;
 
       RCLCPP_INFO(this->get_logger(), "detection degrees: %3.1f width_degrees: %3.1f distance: %3.2f vel: %3.2f", x_angle_degrees, x_width_degrees, distance, velocity);
@@ -162,10 +165,38 @@ public:
       std::bind(&cone_follower_node::handle_cancel, this, _1),
       std::bind(&cone_follower_node::handle_accepted, this, _1));
 
-      auto param_desc = rcl_interfaces::msg::ParameterDescriptor{};
-      param_desc.description = "Max acceleration";
-      param_desc.type = rclcpp::ParameterType::PARAMETER_DOUBLE;
-      this->declare_parameter("accel", 0.3, param_desc);
+      {
+        auto param_desc = rcl_interfaces::msg::ParameterDescriptor{};
+        param_desc.description = "Max acceleration";
+        param_desc.type = rclcpp::ParameterType::PARAMETER_DOUBLE;
+        this->declare_parameter("accel", 0.3, param_desc);
+      }
+
+      {
+        auto param_desc = rcl_interfaces::msg::ParameterDescriptor{};
+        param_desc.description = "Max velocity";
+        param_desc.type = rclcpp::ParameterType::PARAMETER_DOUBLE;
+        this->declare_parameter("max_velocity",1.5, param_desc);
+      }
+
+      {
+        auto param_desc = rcl_interfaces::msg::ParameterDescriptor{};
+        param_desc.description = "Goal distance to cone from front of car";
+        param_desc.type = rclcpp::ParameterType::PARAMETER_DOUBLE;
+        this->declare_parameter("goal_distance", 0.4, param_desc);
+      }
+
+      {
+        auto param_desc = rcl_interfaces::msg::ParameterDescriptor{};
+        param_desc.description = "Min velocity to command since zero velocity can cause issues";
+        param_desc.type = rclcpp::ParameterType::PARAMETER_DOUBLE;
+        this->declare_parameter("min_velocity",0.1, param_desc);
+      }
+
+
+            double min_velocity = 0.1;
+      double stop_distance = 0.3; // distance from front of car to cone to stop at
+
     }
 };
 
