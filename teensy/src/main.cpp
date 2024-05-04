@@ -491,12 +491,10 @@ void publish_battery_state_message() {
 
   battery_state_message.present = battery_state_message.cell_voltage.size > 0;
 
-  if(battery_state_message.cell_voltage.size > 0) {
-    float cell_average = battery_sensor.v_bat / battery_state_message.cell_voltage.size;
-    battery_state_message.percentage = constrain(map(cell_average,3.5,4.2,0.0,1.0),0.0,1.0);
-  } else {
-    battery_state_message.percentage = battery_sensor.v_bat/12.6;
-  }
+  int cell_count = 3;
+  float cell_average = battery_sensor.v_bat / cell_count;
+
+  battery_state_message.percentage = constrain(map(cell_average,3.5,4.2,0.0,1.0),0.0,1.0);
 
   std::ignore = rcl_publish(&battery_state_publisher, &battery_state_message, NULL);
 }
@@ -808,10 +806,10 @@ void setup() {
 
 #if defined(BLUE_CAR)
 #define HAS_MOTOR_ODOM
-  mpu9150.ax_bias = 0;
-  mpu9150.ay_bias = 0;
-  mpu9150.az_bias = 7893.51;
-  mpu9150.rest_a_mag =  7893.51;
+  mpu9150.ax_bias = -473;
+  mpu9150.ay_bias = -197;
+  mpu9150.az_bias = 8945;
+  mpu9150.rest_a_mag =  sqrt(mpu9150.ax_bias*mpu9150.ax_bias + mpu9150.ay_bias*mpu9150.ay_bias + mpu9150.az_bias*mpu9150.az_bias);
   mpu9150.zero_adjust = Quaternion(1.0, 0.0, 0.0, 0.0);
   mpu9150.yaw_slope_rads_per_ms  = -0.0000000680;
   mpu9150.yaw_actual_per_raw = 1;
