@@ -1,8 +1,14 @@
 #include "rclcpp/rclcpp.hpp"
 #include "rclcpp/node.hpp"
 #include "vision_msgs/msg/detection2_d_array.hpp"
+#include "visualization_msgs/msg/marker_array.hpp"
 #include "geometry_msgs/msg/twist.hpp"
+#include "geometry_msgs/msg/pose_stamped.hpp"
+ #include "geometry_msgs/msg/point_stamped.hpp"
 #include "sensor_msgs/msg/laser_scan.hpp"
+
+#include "tf2_ros/transform_listener.h"
+#include "tf2_ros/buffer.h"
 
 #include "car_msgs/action/follow_cone.hpp"
 #include "rclcpp_action/server.hpp"
@@ -22,7 +28,13 @@ public:
   using GoalHandleFollowCone = rclcpp_action::ServerGoalHandle<FollowCone>;
 
   rclcpp::Subscription<vision_msgs::msg::Detection2DArray>::SharedPtr detection_subscription_;
+  rclcpp::Subscription<visualization_msgs::msg::MarkerArray>::SharedPtr marker_subscription_;
+
   rclcpp::Subscription<sensor_msgs::msg::LaserScan>::SharedPtr scan_subscription_;
+
+  std::shared_ptr<tf2_ros::TransformListener> tf_listener_{nullptr};
+  std::unique_ptr<tf2_ros::Buffer> tf_buffer_;
+
   rclcpp::Publisher<geometry_msgs::msg::Twist>::SharedPtr cmd_vel_publisher_;
   rclcpp_action::Server<FollowCone>::SharedPtr action_server_;
 
@@ -66,6 +78,30 @@ public:
   }
 
 
+  void cone_marker_callback(const visualization_msgs::msg::MarkerArray::SharedPtr markers_msg) {
+    if(goal_handle_.get() == nullptr) {
+      return;
+    }
+
+    if(markers_msg->markers.size() == 0) {
+      return;
+    }
+    geometry_msgs::msg::PointStamped p1,p2;
+
+    auto t =tf_buffer_->lookupTransform("base_footprint", markers_msg->markers[0].header.frame_id, rclcpp::Time(0));
+
+
+    geometry_msgs::msg::PoseStamped  a,b;
+
+    // tf_buffer_->transform(p1, p2, "base_footprint");
+
+    //  RCLCPP_INFO(this->get_logger(), "Marker: %f, %f", marker_pose_out.pose.position.x, marker_pose_out.pose.position.y);
+    
+  }
+
+  
+
+
 
   void cone_detection_callback(const vision_msgs::msg::Detection2DArray::SharedPtr detections_msg) {
     if(goal_handle_.get() == nullptr) {
@@ -76,7 +112,7 @@ public:
       float x_width_degrees = detection.bbox.size_x * x_fov_degrees / x_resolution;
       float width_radians = x_width_degrees * (M_PI / 180.0); 
       float cone_width = 0.38; // meters, width of the cone
-      float cone_distance = (cone_width/2.0) / sin(width_radians/2.0);
+      float cone_distance = (cone_width/2.0) / tan(width_radians/2.0);
 
       // find scan line in center of cone and print distance
       float scan_distance = std::numeric_limits<float>::infinity();
@@ -152,9 +188,15 @@ public:
   cone_follower_node() : Node("cone_follower_node") {
     RCLCPP_INFO(this->get_logger(), "Cone Follower Node has started");
     detection_subscription_ = this->create_subscription<vision_msgs::msg::Detection2DArray>("car/oakd/color/cone_detections", 1, std::bind(&cone_follower_node::cone_detection_callback, this, std::placeholders::_1));
+    marker_subscription_ = this->create_subscription<visualization_msgs::msg::MarkerArray>("car/oakd/color/cone_markers", 1, std::bind(&cone_follower_node::cone_marker_callback, this, std::placeholders::_1));
     scan_subscription_ = this->create_subscription<sensor_msgs::msg::LaserScan>("scan", 1, [this](const sensor_msgs::msg::LaserScan::SharedPtr msg) {
       scan_msg_ = msg;
     });
+
+    tf_buffer_ =
+      std::make_unique<tf2_ros::Buffer>(this->get_clock());
+    tf_listener_ =
+      std::make_shared<tf2_ros::TransformListener>(*tf_buffer_);
 
     cmd_vel_publisher_ = this->create_publisher<geometry_msgs::msg::Twist>("cmd_vel", 1);
 

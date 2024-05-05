@@ -20,6 +20,10 @@ find_package(rclcpp REQUIRED)
 find_package(rclcpp_action REQUIRED)
 find_package(std_msgs REQUIRED)
 find_package(vision_msgs REQUIRED)
+find_package(tf2 REQUIRED)
+find_package(tf2_geometry_msgs REQUIRED)
+find_package(tf2_ros REQUIRED)
+find_package(visualization_msgs REQUIRED)
 find_package(sensor_msgs REQUIRED)
 find_package(car_msgs REQUIRED)
 find_package(behaviortree_cpp REQUIRED)
@@ -31,9 +35,14 @@ set(dependencies
   rclcpp
   rclcpp_action
   car_msgs
+  geometry_msgs
   std_msgs
   nav2_msgs
+  tf2
+  tf2_geometry_msgs
+  tf2_ros
   vision_msgs
+  visualization_msgs
   sensor_msgs
 )
 

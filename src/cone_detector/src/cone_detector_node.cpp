@@ -101,12 +101,7 @@ int main(int argc, char** argv) {
 
     rclcpp::Subscription<sensor_msgs::msg::LaserScan>::SharedPtr scan_subscription_;
 
-
-    // create a PointStamped publisher for cone location
-    rclcpp::Publisher<geometry_msgs::msg::PointStamped>::SharedPtr cone_location_publisher = node->create_publisher<geometry_msgs::msg::PointStamped>("color/cone_location", 10);
-    rclcpp::Publisher<geometry_msgs::msg::PointStamped>::SharedPtr cone_location_publisher2 = node->create_publisher<geometry_msgs::msg::PointStamped>("color/cone_location2", 10);
-    rclcpp::Publisher<visualization_msgs::msg::Marker>::SharedPtr marker_publisher = node->create_publisher<visualization_msgs::msg::Marker>("color/cone_markers", 10);
-    rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr marker_array_publisher = node->create_publisher<visualization_msgs::msg::MarkerArray>("color/cone_marker_array", 10);
+    rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr marker_array_publisher = node->create_publisher<visualization_msgs::msg::MarkerArray>("color/cone_markers", 10);
 
 
     std::string tfPrefix, resourceBaseFolder, nnPath;
@@ -162,7 +157,7 @@ int main(int argc, char** argv) {
 
 
     bool lazy = false;
-    dai::rosBridge::BridgePublisher<sensor_msgs::msg::Image, dai::ImgFrame> rgbPublish(
+    dai::rosBridge::BridgePublisher<sensor_msgs::msg::Image, dai::ImgFrame> rgb_publisher(
         previewQueue,
         node,
         std::string("color/image"),
@@ -177,7 +172,7 @@ int main(int argc, char** argv) {
         lazy);
 
     dai::rosBridge::ImgDetectionConverter detConverter(tfPrefix + "_rgb_camera_optical_frame", previewWidth, previewHeight, false);
-    dai::rosBridge::BridgePublisher<vision_msgs::msg::Detection2DArray, dai::ImgDetections> detectionPublish(
+    dai::rosBridge::BridgePublisher<vision_msgs::msg::Detection2DArray, dai::ImgDetections> detection_publisher(
         nNetDataQueue,
         node,
         std::string("color/cone_detections"),
@@ -229,7 +224,7 @@ int main(int argc, char** argv) {
             float x_angle = (x_center - 0.5) * x_fov;
             float width_radians = (d.xmax-d.xmin) * x_fov;
             float cone_width = 0.38;
-            float cone_distance_by_width = (cone_width/2.0) / sin(width_radians/2.0);
+            float cone_distance_by_width = (cone_width/2.0) / tan(width_radians/2.0);
 
             // calculations using height
             float y_height = d.ymax-d.ymin;
@@ -237,7 +232,7 @@ int main(int argc, char** argv) {
             float y_angle = (y_center - 0.5) * y_fov;
             float height_radians = (d.ymax-d.ymin) * y_fov;
             float cone_height = 0.45; // bigger than natural height of 0.45 because image is stretched to square?
-            float cone_distance_by_height = (cone_height/2.0) / sin(height_radians/2.0);
+            float cone_distance_by_height = (cone_height/2.0) / tan(height_radians/2.0);
 
 
             // calculate distance using scan
@@ -320,10 +315,10 @@ int main(int argc, char** argv) {
         marker_array_publisher->publish(marker_array);
     });
 
-    detectionPublish.addPublisherCallback();
+    detection_publisher.addPublisherCallback();
 
 
-    rgbPublish.addPublisherCallback();  // addPublisherCallback works only when the dataqueue is non blocking.
+    rgb_publisher.addPublisherCallback();  // addPublisherCallback works only when the dataqueue is non blocking.
 
     rclcpp::spin(node);
 
