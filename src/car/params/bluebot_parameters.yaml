@@ -32,7 +32,7 @@ car:
       -44.1, 1674.0,
       -29.6, 1593.0,
       -14.8, 1514.0,
-      0.0, 1436.0,
+      0.0, 1445.0,
       14.8, 1376.0,
       29.6, 1254.0,
       44.0, 1221.0,
@@ -45,3 +45,11 @@ gps_fixer:
   ros__parameters:
     min_std: 2.0      # minimum GPS standard deviation to report
     error_factor: 1.0 # multiplier for reported errors, higher numbers make navigation less sensitive to GPS errors
+
+cone_follower_node:
+  ros__parameters:
+    goal_distance: 0.15
+    accel: 0.3
+    max_velocity: 2.0
+    min_velocity: 0.1
+

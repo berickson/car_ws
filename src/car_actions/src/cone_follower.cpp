@@ -98,6 +98,51 @@ public:
     tf2::doTransform(p1, p2, t);
 
     RCLCPP_INFO(this->get_logger(), "Marker: x: %5.2f y: %5.2f z: %5.2f", p2.point.x, p2.point.y, p2.point.z);
+
+    if(goal_handle_.get() == nullptr) {
+      return;
+    }
+
+
+    float distance = p2.point.x;
+    float cone_angle = atan2(p2.point.y, p2.point.x);
+
+    double max_velocity;
+    get_parameter<double>("max_velocity", max_velocity);
+    double max_accel;
+    get_parameter<double>("accel", max_accel);
+    double min_velocity;
+    get_parameter<double>("min_velocity", min_velocity);
+    double stop_distance; // distance from front of car to cone to stop at
+    get_parameter<double>("goal_distance", stop_distance);
+    double distance_remaining = distance - stop_distance;
+
+    // velocity to stop in time
+    float velocity = distance_remaining > 0 ?
+      std::clamp(sqrt(2 * max_accel * distance_remaining), min_velocity, max_velocity) 
+      : 0;
+
+
+    geometry_msgs::msg::Twist cmd_vel_msg;
+    cmd_vel_msg.linear.x = velocity;
+    if(velocity > 0) {
+      float correction_distance = std::clamp(distance_remaining / 2, 0.5, 2.0); // distance to complete turn to currect angle
+      cmd_vel_msg.angular.z = cone_angle *  cmd_vel_msg.linear.x / correction_distance;
+    } else {
+      cmd_vel_msg.angular.z = 0;
+    }
+
+
+
+    cmd_vel_publisher_->publish(cmd_vel_msg);
+    if(distance_remaining <= 0) {
+      if(goal_handle_.get() != nullptr) {
+        RCLCPP_INFO(this->get_logger(), "Goal reached, completing action");
+        goal_handle_->succeed(std::make_shared<FollowCone::Result>());
+        goal_handle_ = nullptr;
+      }
+    }
+    
     
   }
 
@@ -106,6 +151,7 @@ public:
 
 
   void cone_detection_callback(const vision_msgs::msg::Detection2DArray::SharedPtr detections_msg) {
+    return;
     if(goal_handle_.get() == nullptr) {
       return;
     }
