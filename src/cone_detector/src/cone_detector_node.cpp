@@ -255,6 +255,9 @@ int main(int argc, char** argv) {
                 }
             }
 
+            // scanner is 15 cm behind camera
+            scan_distance -= 0.15;
+
 
             // take the smaller of the two visual distances, since clipping can make it seem further away
             float visual_cone_distance = std::min(cone_distance_by_width, cone_distance_by_height);

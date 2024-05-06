@@ -4,7 +4,8 @@
 #include "visualization_msgs/msg/marker_array.hpp"
 #include "geometry_msgs/msg/twist.hpp"
 #include "geometry_msgs/msg/pose_stamped.hpp"
- #include "geometry_msgs/msg/point_stamped.hpp"
+#include "geometry_msgs/msg/point_stamped.hpp"
+#include "tf2_geometry_msgs/tf2_geometry_msgs.hpp"
 #include "sensor_msgs/msg/laser_scan.hpp"
 
 #include "tf2_ros/transform_listener.h"
@@ -79,23 +80,24 @@ public:
 
 
   void cone_marker_callback(const visualization_msgs::msg::MarkerArray::SharedPtr markers_msg) {
-    if(goal_handle_.get() == nullptr) {
-      return;
-    }
+    // if(goal_handle_.get() == nullptr) {
+    //   return;
+    // }
 
-    if(markers_msg->markers.size() == 0) {
+    if(markers_msg->markers.size() <2) {
       return;
     }
     geometry_msgs::msg::PointStamped p1,p2;
+    auto & marker = markers_msg->markers[1];
 
-    auto t =tf_buffer_->lookupTransform("base_footprint", markers_msg->markers[0].header.frame_id, rclcpp::Time(0));
+    auto t =tf_buffer_->lookupTransform("front_bumper", marker.header.frame_id, rclcpp::Time(0));
 
+    p1.header = marker.header;
+    p1.point = marker.pose.position;
 
-    geometry_msgs::msg::PoseStamped  a,b;
+    tf2::doTransform(p1, p2, t);
 
-    // tf_buffer_->transform(p1, p2, "base_footprint");
-
-    //  RCLCPP_INFO(this->get_logger(), "Marker: %f, %f", marker_pose_out.pose.position.x, marker_pose_out.pose.position.y);
+    RCLCPP_INFO(this->get_logger(), "Marker: x: %5.2f y: %5.2f z: %5.2f", p2.point.x, p2.point.y, p2.point.z);
     
   }
 

@@ -846,6 +846,25 @@ void Car::car_update_topic_callback(const car_msgs::msg::Update::SharedPtr d){
       tf_msgs.push_back(tf_msg);
     }
 
+    // base_link->front_bumper
+    {
+      geometry_msgs::msg::TransformStamped tf_msg;
+
+      
+
+      tf_msg.header.frame_id = "base_link";
+      tf_msg.child_frame_id = "front_bumper";
+      tf_msg.header.stamp = stamp;
+      tf_msg.transform.translation.x = 0.432;
+      tf_msg.transform.translation.y = 0.0;
+      tf_msg.transform.translation.z = 0.0;
+      tf_msg.transform.rotation.x = 0.0;
+      tf_msg.transform.rotation.y = 0.0;
+      tf_msg.transform.rotation.z = 0.0;
+      tf_msg.transform.rotation.w = 1.0;
+      tf_msgs.push_back(tf_msg);
+    }
+
     // base_link->oak_rgb_camera_frame
     {
       tf2::Quaternion q;
