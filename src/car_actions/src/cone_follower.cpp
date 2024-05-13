@@ -6,7 +6,6 @@
 #include "geometry_msgs/msg/pose_stamped.hpp"
 #include "geometry_msgs/msg/point_stamped.hpp"
 #include "tf2_geometry_msgs/tf2_geometry_msgs.hpp"
-#include "sensor_msgs/msg/laser_scan.hpp"
 
 #include "tf2_ros/transform_listener.h"
 #include "tf2_ros/buffer.h"
@@ -31,16 +30,11 @@ public:
   rclcpp::Subscription<vision_msgs::msg::Detection2DArray>::SharedPtr detection_subscription_;
   rclcpp::Subscription<visualization_msgs::msg::MarkerArray>::SharedPtr marker_subscription_;
 
-  rclcpp::Subscription<sensor_msgs::msg::LaserScan>::SharedPtr scan_subscription_;
-
   std::shared_ptr<tf2_ros::TransformListener> tf_listener_{nullptr};
   std::unique_ptr<tf2_ros::Buffer> tf_buffer_;
 
   rclcpp::Publisher<geometry_msgs::msg::Twist>::SharedPtr cmd_vel_publisher_;
   rclcpp_action::Server<FollowCone>::SharedPtr action_server_;
-
-  // save the most recent scan
-  sensor_msgs::msg::LaserScan::SharedPtr scan_msg_;
   
   // save the most recent marker
   visualization_msgs::msg::Marker::SharedPtr goal_marker_;
@@ -81,7 +75,6 @@ public:
     return rclcpp_action::CancelResponse::ACCEPT;
   }
 
-
   void cone_marker_callback(const visualization_msgs::msg::MarkerArray::SharedPtr markers_msg) {
     if(markers_msg->markers.size() < 2) {
       return;
@@ -89,36 +82,30 @@ public:
     goal_marker_ = std::make_shared<visualization_msgs::msg::Marker>(markers_msg->markers[1]);
   }
 
-  
-
-
   void loop() {
     if(goal_handle_.get() == nullptr) {
       return;
     }
  
     // fail if we don't have messages
-    if(scan_msg_ == nullptr || goal_marker_ == nullptr) {
-      RCLCPP_WARN(this->get_logger(), "No valid scan or marker message");
+    if(goal_marker_ == nullptr) {
+      RCLCPP_WARN(this->get_logger(), "No valid marker message");
       goal_handle_->abort(std::make_shared<FollowCone::Result>());
       goal_handle_ = nullptr;
       return;
     }
 
-    // calculate difference between current time and time of scan
-    auto scan_time_diff = this->now() - scan_msg_->header.stamp;
+    // calculate difference between current time and time of detection
     auto marker_time_diff = this->now() - goal_marker_->header.stamp;
-    if(scan_time_diff > rclcpp::Duration(std::chrono::seconds(1)) || marker_time_diff > rclcpp::Duration(std::chrono::seconds(1))) {
+    if(marker_time_diff > rclcpp::Duration(std::chrono::seconds(1))) {
       goal_handle_->abort(std::make_shared<FollowCone::Result>());
       goal_handle_ = nullptr;
-      RCLCPP_INFO(this->get_logger(), "Scan or marker message is too old");
+      RCLCPP_INFO(this->get_logger(), "Marker message is too old");
       return;
     }
 
     geometry_msgs::msg::PointStamped p1,p2;
     auto & marker = *goal_marker_;
-
-
 
     // find transform from where the bumber is now to where the cone was when it was detected
     rclcpp::Time now = this->get_clock()->now();
@@ -135,8 +122,6 @@ public:
         std::chrono::milliseconds(50)
     );
 
-
-
     p1.header = marker.header;
     p1.point = marker.pose.position;
 
@@ -147,7 +132,6 @@ public:
     if(goal_handle_.get() == nullptr) {
       return;
     }
-
 
     float distance = p2.point.x;
     float cone_angle = atan2(p2.point.y, p2.point.x);
@@ -168,7 +152,6 @@ public:
       std::clamp(sqrt(2 * max_accel * distance_remaining)-lag_time*max_accel, min_velocity, max_velocity) 
       : 0;
 
-
     geometry_msgs::msg::Twist cmd_vel_msg;
     cmd_vel_msg.linear.x = velocity;
     if(velocity > 0) {
@@ -177,8 +160,6 @@ public:
     } else {
       cmd_vel_msg.angular.z = 0;
     }
-
-
 
     cmd_vel_publisher_->publish(cmd_vel_msg);
     if(distance_remaining <= 0) {
@@ -193,13 +174,9 @@ public:
   // timer member variable
   rclcpp::TimerBase::SharedPtr timer_;
 
-
   cone_follower_node() : Node("cone_follower_node") {
     RCLCPP_INFO(this->get_logger(), "Cone Follower Node has started");
     marker_subscription_ = this->create_subscription<visualization_msgs::msg::MarkerArray>("car/oakd/color/cone_markers", 1, std::bind(&cone_follower_node::cone_marker_callback, this, std::placeholders::_1));
-    scan_subscription_ = this->create_subscription<sensor_msgs::msg::LaserScan>("scan", 1, [this](const sensor_msgs::msg::LaserScan::SharedPtr msg) {
-      scan_msg_ = msg;
-    });
 
     tf_buffer_ =
       std::make_unique<tf2_ros::Buffer>(this->get_clock());
@@ -243,8 +220,7 @@ public:
         this->declare_parameter("min_velocity",0.1, param_desc);
       }
 
-      // create timer for main loop
-      const int timer_hz = 100;
+      // loop at 100Hz
       timer_ = this->create_wall_timer(std::chrono::milliseconds(10), [this]() {
         loop();
       });
@@ -252,12 +228,10 @@ public:
     }
 };
 
-
-
 int main(int argc, char** argv) {
   rclcpp::init(argc, argv);
 
-   auto node = std::make_shared<cone_follower_node>();
+  auto node = std::make_shared<cone_follower_node>();
 
   rclcpp::spin(node);
 
