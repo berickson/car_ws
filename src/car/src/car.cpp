@@ -18,6 +18,7 @@
 #include "car_msgs/msg/update.hpp"
 #include "car_msgs/msg/rc_command.hpp"
 #include "car_msgs/msg/speedometer.hpp"
+#include "car_msgs/msg/status.hpp"
 
 #include "speedometer.h"
 #include "ackermann.h"
@@ -45,6 +46,15 @@ class Car : public rclcpp::Node
     Speedometer front_right_wheel_;
     Speedometer front_left_wheel_;
     Speedometer motor_;
+
+    struct {
+      bool rear_move_complete = false;
+      rclcpp::Time rear_move_complete_time;
+      double motor_start_meters = NAN;
+      double fl_start_meters = NAN;
+      double fr_start_meters = NAN;
+    } stuck_check_params;
+
 
     Car()
     : Node("car")
@@ -342,6 +352,7 @@ class Car : public rclcpp::Node
       fl_speedometer_publisher_ = this->create_publisher<car_msgs::msg::Speedometer> ("car/speedometers/fl", 10);
       fr_speedometer_publisher_ = this->create_publisher<car_msgs::msg::Speedometer> ("car/speedometers/fr", 10);
       motor_speedometer_publisher_ = this->create_publisher<car_msgs::msg::Speedometer> ("car/speedometers/motor", 10);
+      status_publisher_ = this->create_publisher<car_msgs::msg::Status>("car/status_cpp", 10);
       ackerman_fr_publisher_ = this->create_publisher<geometry_msgs::msg::PoseStamped> ("car/ackermann/fr", 10);
       tf_broadcaster_ = std::make_unique<tf2_ros::TransformBroadcaster>(*this);
 
@@ -396,6 +407,7 @@ class Car : public rclcpp::Node
     rclcpp::Publisher<car_msgs::msg::Speedometer>::SharedPtr fl_speedometer_publisher_;
     rclcpp::Publisher<car_msgs::msg::Speedometer>::SharedPtr fr_speedometer_publisher_;
     rclcpp::Publisher<car_msgs::msg::Speedometer>::SharedPtr motor_speedometer_publisher_;
+    rclcpp::Publisher<car_msgs::msg::Status>::SharedPtr status_publisher_;
     rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr ackerman_fr_publisher_;
     rclcpp::Publisher<nav_msgs::msg::Odometry>::SharedPtr odom_publisher_;
     rclcpp::Publisher<sensor_msgs::msg::Imu>::SharedPtr imu_publisher_;
@@ -767,6 +779,49 @@ void Car::car_update_topic_callback(const car_msgs::msg::Update::SharedPtr d){
         } 
 
 
+      }
+
+      // calculate car status
+      {
+        car_msgs::msg::Status status_msg;
+        status_msg.header.stamp = stamp;
+        status_msg.header.frame_id = "base_link";
+        
+        // check for stuck
+        {
+
+          // initialize if this is the first time
+          if (std::isnan(stuck_check_params.motor_start_meters)) {
+            stuck_check_params.motor_start_meters = motor.meters;
+            stuck_check_params.fl_start_meters = fl.meters;
+            stuck_check_params.fr_start_meters = fr.meters;
+            stuck_check_params.rear_move_complete = false;
+          }
+
+          // if the front has moved 5cm, we're good, reset everything
+          else if ( abs(fr.meters-stuck_check_params.fr_start_meters) > 0.05 || 
+                abs(fl.meters-stuck_check_params.fl_start_meters) > 0.05 ){
+            stuck_check_params.motor_start_meters = motor.meters;
+            stuck_check_params.fl_start_meters = fl.meters;
+            stuck_check_params.fr_start_meters = fr.meters;
+            stuck_check_params.rear_move_complete = false;
+          }
+
+          // check to see if the rear has completed 15cm of movement
+          else if (stuck_check_params.rear_move_complete == false ) {
+            if (abs(motor.meters - stuck_check_params.motor_start_meters) > 0.15) {
+              stuck_check_params.rear_move_complete = true;
+              stuck_check_params.rear_move_complete_time = stamp;
+            }
+          }
+
+          else if ( (stamp - stuck_check_params.rear_move_complete_time).seconds() > 1.0) {
+            status_msg.stuck = true;
+            status_msg.states.push_back("stuck");
+          }
+        }
+
+        status_publisher_->publish(status_msg);
       }
   
       last_odom = odom;

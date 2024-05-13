@@ -33,6 +33,7 @@ rosidl_generate_interfaces(${PROJECT_NAME}
   "msg/RcCommand.msg"
   "msg/SpeedCommand.msg"
   "msg/Speedometer.msg"
+  "msg/Status.msg"
   "msg/SteerCommand.msg"
   "action/FollowCone.action"
   "action/RotateInPlace.action"
