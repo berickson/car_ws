@@ -24,6 +24,8 @@
 #include "depthai/device/Device.hpp"
 #include "depthai/pipeline/Pipeline.hpp"
 #include "depthai/pipeline/node/ColorCamera.hpp"
+#include "depthai/pipeline/node/MonoCamera.hpp"
+#include "depthai/pipeline/node/StereoDepth.hpp"
 #include "depthai/pipeline/node/DetectionNetwork.hpp"
 #include "depthai/pipeline/node/XLinkOut.hpp"
 #include "depthai/pipeline/node/ImageManip.hpp"
@@ -38,6 +40,13 @@ const int nnHeight = 640;
 
 dai::Pipeline createPipeline(bool syncNN, std::string nnPath) {
     dai::Pipeline pipeline;
+    auto monoLeft = pipeline.create<dai::node::MonoCamera>();
+    auto monoRight = pipeline.create<dai::node::MonoCamera>();
+    auto stereo = pipeline.create<dai::node::StereoDepth>();
+
+    auto xoutDepth = pipeline.create<dai::node::XLinkOut>();
+
+    xoutDepth->setStreamName("depth");
     auto colorCam = pipeline.create<dai::node::ColorCamera>();
     auto xlinkOut = pipeline.create<dai::node::XLinkOut>();
     auto detectionNetwork = pipeline.create<dai::node::YoloDetectionNetwork>();  // Use YoloDetectionNetwork
@@ -61,6 +70,24 @@ dai::Pipeline createPipeline(bool syncNN, std::string nnPath) {
     colorCam->setInterleaved(false);
     colorCam->setColorOrder(dai::ColorCameraProperties::ColorOrder::BGR);
     colorCam->setFps(10);
+
+    // StereoDepth
+    int stereo_confidence = 200;
+    bool lrcheck = true;
+    bool extended = false;
+    bool subpixel = true;
+    int LRchecktresh = 5;
+    stereo->initialConfig.setConfidenceThreshold(stereo_confidence);
+    stereo->setRectifyEdgeFillColor(0);  // black, to better see the cutout
+    stereo->initialConfig.setLeftRightCheckThreshold(LRchecktresh);
+    stereo->setLeftRightCheck(lrcheck);
+    stereo->setExtendedDisparity(extended);
+    stereo->setSubpixel(subpixel);
+
+    // // Link plugins CAM -> STEREO -> XLINK
+    monoLeft->out.link(stereo->left);
+    monoRight->out.link(stereo->right);
+    stereo->depth.link(xoutDepth->input);
 
     // testing YOLOv8n DetectionNetwork
     detectionNetwork->setConfidenceThreshold(0.5f);
@@ -97,6 +124,10 @@ class ConeDetectorNode : public rclcpp::Node {
 
 int main(int argc, char** argv) {
     rclcpp::init(argc, argv);
+
+    // log start
+    RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Starting Cone Detector Node");
+
     auto node = std::make_shared<ConeDetectorNode>();
 
     rclcpp::Subscription<sensor_msgs::msg::LaserScan>::SharedPtr scan_subscription_;
@@ -149,10 +180,12 @@ int main(int argc, char** argv) {
 
     std::shared_ptr<dai::DataOutputQueue> previewQueue = device.getOutputQueue("preview", 2, false);
     std::shared_ptr<dai::DataOutputQueue> nNetDataQueue = device.getOutputQueue("detections", 2, false);
+    auto stereoQueue = device.getOutputQueue("depth", 2, false);
 
     std::string color_uri = cameraParamUri + "/" + "color.yaml";
 
     const int queueDepth = 1;
+    
     dai::rosBridge::ImageConverter rgbConverter(tfPrefix + "_rgb_camera_optical_frame", false);
 
 
@@ -170,6 +203,35 @@ int main(int argc, char** argv) {
         color_uri,
         "color", 
         lazy);
+
+    // publish depth camera
+    std::unique_ptr<dai::rosBridge::BridgePublisher<sensor_msgs::msg::Image, dai::ImgFrame>> depthPublish;
+    // auto calibrationHandler = std::make_shared<camera_info_manager::CameraInfoManager>(node, tfPrefix + "_right_camera_optical_frame", color_uri);
+    int monoWidth = 640;
+    int monoHeight = 480;
+    auto calibrationHandler = device.readCalibration();
+
+    // todo: change back to right camera
+    // dai::rosBridge::ImageConverter depthConverter(tfPrefix + "_right_camera_optical_frame", true);
+    dai::rosBridge::ImageConverter depthConverter(tfPrefix + "_rgb_camera_optical_frame", true);
+
+    auto stereoCameraInfo = depthConverter.calibrationToCameraInfo(calibrationHandler, dai::CameraBoardSocket::CAM_C, monoWidth, monoHeight);
+    bool useDepth = true;
+    if(useDepth) {
+        depthPublish = std::make_unique<dai::rosBridge::BridgePublisher<sensor_msgs::msg::Image, dai::ImgFrame>>(
+            stereoQueue,
+            node,
+            std::string("stereo/depth"),
+            std::bind(&dai::rosBridge::ImageConverter::toRosMsg,
+                      &depthConverter,  // since the converter has the same frame name
+                                        // and image type is also same we can reuse it
+                      std::placeholders::_1,
+                      std::placeholders::_2),
+            30,
+            stereoCameraInfo,
+            "stereo");
+    }
+
 
     dai::rosBridge::ImgDetectionConverter detConverter(tfPrefix + "_rgb_camera_optical_frame", previewWidth, previewHeight, false);
     dai::rosBridge::BridgePublisher<vision_msgs::msg::Detection2DArray, dai::ImgDetections> detection_publisher(
@@ -319,10 +381,14 @@ int main(int argc, char** argv) {
     });
 
     detection_publisher.addPublisherCallback();
+    if(useDepth) {
+        depthPublish->addPublisherCallback();
+    }
 
 
     rgb_publisher.addPublisherCallback();  // addPublisherCallback works only when the dataqueue is non blocking.
 
+    RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Spinning Cone Detector Node");
     rclcpp::spin(node);
 
     return 0;

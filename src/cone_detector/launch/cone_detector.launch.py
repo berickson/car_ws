@@ -48,10 +48,24 @@ def generate_launch_description():
                         {'resourceBaseFolder': default_resources_path},
                         {'monoResolution': monoResolution},
                         {'spatial_camera': spatial_camera}])
+    
+    point_cloud_to_depth_node = launch_ros.actions.Node(
+            package='depth_image_proc',
+            executable='point_cloud_xyz_node',
+            name='point_cloud_xyz',
+            # parameters=[{'input': '/car/oakd/stereo/depth', 'camera_info': '/car/oakd/stereo/depth/camera_info'}],
+            remappings=[
+                ('camera_info', '/car/oakd/stereo/camera_info'),
+                ('image_rect', '/car/oakd/stereo/depth'),
+                ('points', '/car/oakd/stereo/depth/points')
+            ]
+        )
+
 
     ld = LaunchDescription([namespace_arg])
 
     ld.add_action(yolov8_cone_node)
+    ld.add_action(point_cloud_to_depth_node)
 
     return ld
 
