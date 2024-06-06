@@ -5,12 +5,12 @@ car:
     camera_yaw_degrees: -2.0
     camera_roll_degrees: 1.0
     camera_x: 0.27
-    camera_z: 0.135
+    camera_z: 0.155
     compass_correction_degrees: 179.0
     compass_error_degrees: 5.0
     compass_error_factor: 5.0 # makes navigation less sensitive to compass errors
     lidar_x: 0.140
-    lidar_z: 0.175
+    lidar_z: 0.195
 
     # eldo
     # mag_x_min: -500.0 # -650.0
