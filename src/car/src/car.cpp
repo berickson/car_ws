@@ -1014,7 +1014,6 @@ void Car::car_update_topic_callback(const car_msgs::msg::Update::SharedPtr d){
       // handle stopped case
       if(fabs(meters_per_second)<0.02 && fabs(speedometer.v_smooth)<0.02) {
         esc_us_float = 1500;
-        str_us_float = 1500;
       }
     } else {
       esc_us_float = 1500; // idle
