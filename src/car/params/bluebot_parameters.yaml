@@ -1,6 +1,11 @@
 car:
   ros__parameters:
     robot_id: "bluebot"
+
+    front_left_meters_per_tick: 0.003087
+    front_right_meters_per_tick: 0.003112
+    motor_meters_per_tick: 0.0033876
+
     camera_pitch_degrees: 3.5
     camera_yaw_degrees: -2.0
     camera_roll_degrees: 1.0
